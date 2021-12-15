@@ -1,0 +1,33 @@
+#roomlist tr {
+  border: 1px solid black;
+}
+#roomlist td,
+#roomlist th {
+  padding: 4px;
+}
+#roomlist th {
+  border: 1px solid black;
+}
+#roomlist table {
+  margin: 0 auto;
+  width: 50%;
+  border: 1px solid black;
+  border-collapse: collapse;
+}
+#roomlist .refresh {
+  cursor: pointer;
+  color: blue;
+  text-align: center;
+}
+#roomlist .roomjoin {
+  text-align: center;
+  color: blue;
+  cursor: pointer;
+}
+#roomlist .roomid {
+  text-align: center;
+}
+
+#roomlist .roomcapacity {
+  text-align: center;
+}

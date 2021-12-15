@@ -1,0 +1,29 @@
+.gamehead {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: 2fr 8fr;
+}
+
+.gamehead div {
+  text-align: center;
+  width: 100%;
+  display: inline-block;
+}
+
+.gamehead div:first-child {
+  border-right: 1px solid black;
+}
+
+.wordlist {
+  border: 1px solid black;
+  width: 75%;
+  margin: 0 auto;
+}
+
+.word {
+  border-top: 1px solid black;
+}
+
+.playerid {
+  font-weight: bolder;
+}
