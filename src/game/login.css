@@ -1,0 +1,23 @@
+.logout,
+.goBack {
+  color: blue;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.error {
+  color: red;
+  font-weight: bolder;
+}
+
+nav {
+  padding: 5px;
+}
+
+.uiLang {
+  position: absolute;
+  cursor: pointer;
+  padding: 5px;
+  right: 0;
+  z-index: 10;
+}

@@ -227,6 +227,27 @@ server.post(
   },
 )
 
+let busy = false
+
+server.post("/game/:id/wrong", async (req, res) => {
+  allowCredentials(res)
+  const roomid = req.params.id
+  const playerid = parseInt(req.cookies.loggedas, 10)
+  const room = hub.getRoom(roomid)
+  console.log(
+    `\nPlayer ${playerid} lost a point in room #${roomid}\n`,
+  )
+  if (room && playerid) {
+    room.addPoints(playerid, -1)
+    room.sendEvent({
+      data: { type: "points", playerid, data: -1 },
+      time: new Date().getTime(),
+    })
+  }
+  hub.saveRoom(room.id, updateRoomSQL)
+  return "1"
+})
+
 server.post("/game/:id/send", async (req, res) => {
   allowCredentials(res)
   const roomid = req.params.id
@@ -236,13 +257,31 @@ server.post("/game/:id/send", async (req, res) => {
     `\nPlayer ${playerid} sent "${req.body}" in room #${roomid}\n`,
   )
   const word = new Word(playerid, req.body)
-  if (room) {
-    room.registerWord(word.playerid, word.word, word.time)
-    room.sendEvent({
-      data: { type: "input", playerid, data: req.body },
-      time: word.time,
-    })
+  if (room && word.shallowCorrect()) {
+    busy = true
+    console.log("Deeply testing")
+    if (word.deepCorrect()) {
+      console.log("Deep finished!")
+      const hasWordBeenPlayed = room.checkForWord(word)
+      room.registerWord(word.playerid, word.word, word.time)
+      room.addPoints(playerid, 1)
+      room.sendEvent({
+        data: { type: "input", playerid, data: word.word },
+        time: word.time,
+      })
+    } else {
+      console.log("Not in dictionary")
+      room.addPoints(playerid, -1)
+      room.sendEvent({
+        data: { type: "points", playerid, data: -1 },
+        time: new Date().getTime(),
+      })
+    }
+  } else {
+    // handle two requests when they were not possible!
   }
+  busy = false
+  hub.saveRoom(room.id, updateRoomSQL)
   return "1"
 })
 

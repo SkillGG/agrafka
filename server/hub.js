@@ -37,6 +37,13 @@ class Hub {
     else return null
   }
 
+  async saveRoom(roomid, update) {
+    const room = this.rooms.find((room) => room.id === roomid)
+    if (room) {
+      await update(room.id, room.getState())
+    }
+  }
+
   async saveRooms(update) {
     for (const room of this.rooms) {
       await update(room.id, room.getState())
@@ -54,7 +61,13 @@ class Hub {
       rows.forEach((e) => {
         if (!this.rooms.find((r) => r.id === parseInt(e.roomid)))
           this.addRoom(e.roomid)
-        this.getRoom(e.roomid).data = Room.parseState(e.gamestate)
+        const parsedData = Room.parseState(e.gamestate)
+        console.log("parsed", parsedData, "\n\n")
+        this.getRoom(e.roomid).data = [
+          parsedData[0],
+          ...parsedData.filter((a, i) => i > 1),
+        ]
+        this.getRoom(e.roomid).points = new Map(parsedData[1])
         this.getRoom(e.roomid).maxPlayers = parseInt(e.maxplayers, 10)
       })
     }

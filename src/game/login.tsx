@@ -1,15 +1,21 @@
-import React, { useEffect } from "react"
-import { useState } from "react"
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  FormEventHandler,
+  FormEvent,
+} from "react"
+import {
+  checkIfPlayerExists,
+  fetchFromServer,
+  fetchFromServerJSON,
+} from "./server"
 
-import Cookies from "universal-cookie"
+import ErrorCode from "../errors"
 
-import ErrorCodes from "../errors"
-
-import "./login.css"
-import { fetchFromServer, fetchFromServerJSON } from "./server"
-
-import { Room } from "./gameroom"
-import { response } from "express"
+import { getLanguage, Language } from "./language"
+import { doOnBack } from "./utils"
+import { UserData } from "."
 
 interface LoginFormElements extends HTMLFormControlsCollection {
   asGuest?: HTMLFormElement
@@ -20,266 +26,192 @@ interface LoginFormElement extends HTMLFormElement {
   readonly elements: LoginFormElements
 }
 
-/**
- * 0- login
- * 1- register
- * 2- password
- * string - logged in
- */
-export type loginStates = 0 | 1 | 2 | string
+import "./login.css"
 
 export default function Login({
+  language,
   data,
+  logged,
 }: {
-  data: (
-    data: () => {
-      id: number
-      name: string
-    } | null,
-  ) => void
+  language: Language
+  data: any
+  logged?: UserData
 }) {
-  const [username, setUsername] = useState<string | null>(null)
-  const [password, setPassword] = useState<string | null>(null)
-  const [showPass, setShowPass] = useState<boolean>(false)
-  const [state, setLoginState] = useState<loginStates>(0)
-  const [userID, setUserID] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [username, setUsername] = useState<string | false>(false)
+  const [loggedIn, setLoggedIn] = useState(false)
+  const [userID, setUserID] = useState<number>(0)
+  const [isPassword, setIsPassword] = useState(false)
+  const [inputValue, setInputValue] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const resetToDefaults = (
-    username: string | null = null,
-    showpass: boolean | null = null,
-    state: loginStates | null = null,
-    userid: number | null = null,
-  ) => {
-    setUsername(username || null)
-    setPassword(null)
-    setShowPass(showpass || false)
-    setLoginState(state || 0)
-    setUserID(userid || null)
-    setError(null)
+  const [error, setError] = useState("")
+  const [buttonValue, setButtonLabel] = useState(language.next)
+
+  const [fieldLabel, setFieldLabel] = useState<string | JSX.Element>(
+    language.inputUsername,
+  )
+
+  const [creatingAccount, setCreatingAccount] = useState(false)
+
+  useEffect(() => {
+    if (logged && logged.id) {
+      setLoggedIn(true)
+      setUsername(logged.name)
+      setUserID(logged.id)
+    }
+  }, [logged])
+
+  const logout = async () => {
+    await fetchFromServer("/logout", {
+      method: "POST",
+      credentials: "include",
+    })
+    showInsertUsername()
+    setLoggedIn(false)
     data(() => null)
   }
 
-  const checkForCookies = async () => {
-    if (state === 0) {
-      const cookies = new Cookies()
-      let c_loggedas: string = cookies.get("loggedas", {
-        doNotParse: true,
-      })
-      if (c_loggedas && /\d+/.exec(c_loggedas)) {
-        const { status, response } = await fetchFromServer(
-          `/user/id/${c_loggedas}`,
-        )
+  const showInsertUsername = () => {
+    setUsername(false)
+    setIsPassword(false)
+    setInputValue("")
+    setCreatingAccount(false)
+    setFieldLabel(language.inputUsername)
+    setButtonLabel(language.next)
+  }
 
-        if (status === 200) {
-          const name = await response
-          let id = parseInt(c_loggedas)
-          setUsername(name)
-          setLoginState(name)
+  const handleSubmit: FormEventHandler<Element> = async (
+    ev: FormEvent,
+  ) => {
+    ev.preventDefault()
+    ev.stopPropagation()
+    if (!inputValue) {
+      // error "Empty field"
+    }
+    if (!username) {
+      // input username
+      if (inputValue) {
+        let id = null
+        if ((id = await checkIfPlayerExists(inputValue))) {
+          // show login pass
+          setButtonLabel(language.login)
           setUserID(id)
-          data(() => ({ id, name }))
+        } else {
+          // show create account
+          setButtonLabel(language.register)
+          setCreatingAccount(true)
+        }
+        setUsername(inputValue)
+        setIsPassword(true)
+        if (language.inputPINFor.xfill)
+          setFieldLabel(
+            language.inputPINFor.xfill({
+              value: inputValue,
+              onClick: () => {
+                showInsertUsername()
+              },
+            }),
+          )
+        else
+          setFieldLabel(
+            language.inputPINFor.fill({ value: inputValue }),
+          )
+        setInputValue("")
+        doOnBack(() => {
+          showInsertUsername()
+        })
+      }
+    } else {
+      if (creatingAccount) {
+        // create account
+        if (inputValue.length != 6) {
+          // error "too short password"
+          return
+        }
+        let {status, response} = await fetchFromServer(`/create/${username}`, {method:"POST", body:inputValue})
+        if(status === 200){
+          // user created
+          let userData = {id: parseInt(await response, 10), name:username};
+          console.log(userData)
+          data(()=>userData)
+        }
+
+      } else {
+        // log into an account
+        if (userID) {
+          let { status, response } = await fetchFromServerJSON(
+            `/user/id/${userID}/login`,
+            {
+              method: "POST",
+              body: inputValue,
+              credentials: "include",
+            },
+          )
+          if (status == ErrorCode.NO_USER) {
+          } else if (status == ErrorCode.WRONG_PASS) {
+            setError(language.wrongPass)
+          } else if (status == 200) {
+            if (username) {
+              window.onpopstate = () => {}
+              let userData = { id: userID, name: username }
+              setLoggedIn(true)
+              data(() => userData)
+            }
+          }
+        } else {
+          // error
         }
       }
     }
+    inputRef.current?.focus()
   }
 
-  useEffect(() => {
-    checkForCookies()
-  }, [])
-
-  const checkIfPlayerExists = async (
-    name: string,
-  ): Promise<false | number> => {
-    let call = await fetchFromServer(`/user/name/${name}`)
-    if (call.status === 200) return parseInt(await call.response, 10)
-    return false
-  }
-
-  const createUser = async (
-    login: string,
-    password: string,
-  ): Promise<false | string> => {
-    let { status, response: id } = await fetchFromServer(
-      `/create/${login}`,
-      {
-        method: "post",
-        body: password,
-      },
-    )
-    if (status === 200) return await id
-    console.log(await id)
-    setError(
-      `Coudn't create user because of a server error! (${await id})`,
-    )
-    return false
-  }
-
-  const logInto = async (id: number, pass: string) => {
-    let { status, response } = await fetchFromServerJSON(
-      `/user/id/${id}/login`,
-      { method: "POST", body: pass, credentials: "include" },
-    )
-    if (status == ErrorCodes.NO_USER) {
-    } else if (status == ErrorCodes.WRONG_PASS) {
-      setError((await response).message)
-    } else if (status == 200) {
-      if (username) {
-        setLoginState(username)
-        data(() => ({ id, name: username }))
-      }
-    }
-  }
-
-  const logout = async () => {
-    await fetchFromServer(`/logout`, {
-      credentials: "include",
-      method: "post",
-    })
-    resetToDefaults()
-  }
-
-  const doOnBack = (fn: () => void) => {
-    window.history.pushState(null, "", window.location.href)
-    window.onpopstate = (e) => {
-      e.preventDefault()
-      window.history.back()
-      window.onpopstate = () => {}
-      fn()
-    }
-  }
-
-  const login = async (str: string) => {
-    switch (state) {
-      case 0:
-        // login
-        if (!str) return setError("Podaj poprawna nazwe uzytkownika!")
-        const id = await checkIfPlayerExists(str)
-        if (id) {
-          setUsername(str)
-          setUserID(id)
-          setPassword(null)
-          doOnBack(() => setLoginState(0))
-          setLoginState(2)
-        } else setLoginState(1)
-        return
-      case 1:
-        // register
-        if (username) {
-          const id = await createUser(username, str)
-          if (id) {
-            logInto(parseInt(id), str)
-          } else {
-            console.error("Couldn't create new user!")
-          }
-        } else return
-      case 2:
-        // password
-        if (userID) await logInto(userID, str)
-        return
-    }
-  }
-
-  const handleUsername = async (
-    event: React.FormEvent<LoginFormElement>,
-  ) => {
-    event.preventDefault()
-    setError(null)
-    if (event.currentTarget.checkValidity()) login(username || "")
-  }
-
-  const handlePassword = (
-    event: React.FormEvent<LoginFormElement>,
-  ) => {
-    event.preventDefault()
-    setError(null)
-    if (password) login(password)
-  }
-
-  switch (state) {
-    case 0:
-      return (
-        <form onSubmit={handleUsername}>
-          <label htmlFor='username'>Nazwa: </label>
-          <input
-            id='username'
-            name='username'
-            type='text'
-            pattern={"[a-zA-Z0-9]+"}
-            value={username || ""}
-            onChange={(e) => setUsername(e.target.value || null)}
-          />
-          <input type='submit' value='Zagraj' />
-          {error && (
-            <>
-              <br />
-              <span>{error}</span>
-            </>
-          )}
-        </form>
-      )
-    case 1:
-    case 2:
-      // register form
-      const log = state === 2
-      return (
-        <form onSubmit={handlePassword}>
-          <span>
-            {log
-              ? "Zaloguj sie na konto:"
-              : "Stworz haslo dla konta:"}
-            <span
-              onClick={() => setLoginState(0)}
-              title={"Zaloguj się na inne konto"}
-              style={styles.backText}
-            >
-              {username}
-            </span>
-          </span>
+  return (
+    <nav>
+      {(!loggedIn && (
+        <form onSubmit={handleSubmit}>
+          <label htmlFor='inputField'>{fieldLabel}</label>
           <br />
-          <label htmlFor='password'>PIN:</label>
           <input
-            id='password'
-            name='password'
-            type={showPass ? "text" : "password"}
-            pattern='\d{6}'
-            value={password || ""}
-            onChange={(e) => setPassword(e.target.value)}
+            readOnly={true}
+            onFocus={(e) => (e.target.readOnly = false)}
+            id='inputField'
+            name='inputField'
+            type={isPassword ? "password" : "text"}
+            value={inputValue}
+            ref={inputRef}
+            pattern={isPassword ? "\\d{0,6}" : "[a-zA-Z0-9]*"}
+            onChange={(e) =>
+              (
+                e.target.parentElement as HTMLFormElement
+              ).checkValidity() && setInputValue(e.target.value)
+            }
           />
-          <input type='submit' value={"Zaloguj"} />
-          <br />
-          <span>Pokaż</span>
           <input
-            type='checkbox'
-            name='showpass'
-            id='showpass'
-            checked={showPass}
-            onChange={(e) => setShowPass(e.target.checked)}
+            type='submit'
+            value={buttonValue}
+            onClick={(e) => {
+              ;(
+                e.currentTarget
+                  .previousElementSibling as HTMLInputElement
+              ).readOnly = false
+            }}
           />
-          {error && (
-            <>
-              <br />
-              <span>{error}</span>
-            </>
-          )}
         </form>
-      )
-    default:
-      // already logged in
-      return (
+      )) || (
         <div>
-          Zalogowano jako{" "}
-          <span style={styles.backText} onClick={() => logout()}>
-            {state}
-          </span>
+          {language.loggedAs.xfill?.({
+            value: username || "_ERR_",
+            onClick: (ev) => logout(),
+          }) ||
+            language.loggedAs.fill({ value: username || "_ERR_" })}
         </div>
-      )
-  }
-}
-
-const styles = {
-  backText: {
-    color: "blue",
-    textDecoration: "underline",
-    cursor: "pointer",
-  },
+      )}
+      {error && (
+        <>
+          <span className='error'>{error}</span>
+        </>
+      )}
+    </nav>
+  )
 }

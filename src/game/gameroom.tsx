@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useRef, useEffect, useState } from "react"
 import { fetchFromServer } from "./server"
 
 type ConsoleMSG = {
@@ -18,18 +18,23 @@ export type Room = {
 }
 
 import "./gameroom.css"
+import { Language } from "./language"
+
+const gameRegex = /[a-z]/i
 
 export default function GameRoom({
   roomid,
   roomState,
   playerID,
   playerName,
+  language,
   onLeave,
 }: {
   roomid: number
   roomState: Room | null
   playerID: number
   playerName: string
+  language: Language
   onLeave: () => void
 }) {
   const [consoleMessages, setConsoleMessages] = useState<
@@ -37,6 +42,10 @@ export default function GameRoom({
   >([])
 
   const [words, setWords] = useState<Word[]>([])
+
+  const [playerPoints, setPlayerPoints] = useState<
+    Map<number, number>
+  >(new Map())
 
   const [text, setText] = useState("")
 
@@ -51,6 +60,19 @@ export default function GameRoom({
   )
 
   const [error, setError] = useState<string | null>(null)
+
+  const addPointToPlayer = (id: number, n: number): void => {
+    console.log("addpts", id, n)
+    setPlayerPoints(
+      (prev) =>
+        new Map(
+          [...prev].map(([pid, pts]) => [
+            pid,
+            pid === id ? pts + n : pts,
+          ]),
+        ),
+    )
+  }
 
   const leaveRoom = () =>
     fetchFromServer(`/game/${roomid}/leave`, {
@@ -79,6 +101,22 @@ export default function GameRoom({
       )
     })
 
+    const tempPoints = new Map()
+    const ptsstaterx = roomState?.state.matchAll(
+      /(?<player>\d+)(?<pts>\-+)/gi,
+    )
+    if (ptsstaterx) {
+      // calc neg pts
+      for (const match of ptsstaterx) {
+        if (match.groups) {
+          const { player, pts } = match.groups
+          const id = parseInt(player, 10)
+          const reduce = pts.length
+          tempPoints.set(id, -reduce)
+        }
+      }
+    }
+
     const staterx = roomState?.state.matchAll(
       /(?<player>\d+?)(?<word>[a-ząćęółńśżź]+)(?<t>\d+?);/gi,
     )
@@ -94,11 +132,13 @@ export default function GameRoom({
           setWords((prev) => {
             return [...prev, { id, word, time }]
           })
+          tempPoints.set(id, (tempPoints.get(id) || 0) + 1)
         }
       }
       for (const id of idset) {
         getUsernameFromServer(id, true)
       }
+      setPlayerPoints(tempPoints)
     }
   }, [])
 
@@ -126,6 +166,12 @@ export default function GameRoom({
         let json = JSON.parse(ev.data)
         const playerid = parseInt(json.data.playerid) || 0
         switch (json.data.type) {
+          case "points":
+            const pts = parseInt(json.data.data, 10)
+            if (playerid && pts) {
+              addPointToPlayer(playerid, pts)
+            }
+            break
           case "input":
             if (
               playerid &&
@@ -144,6 +190,7 @@ export default function GameRoom({
                 },
               ]
             })
+            addPointToPlayer(playerid, 1)
             break
           case "joined":
             if (playerid && playerid !== playerID)
@@ -183,6 +230,14 @@ export default function GameRoom({
     listen()
   }, [])
 
+  const wordlistRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    wordlistRef.current
+      ?.querySelector(".word:last-child")
+      ?.scrollIntoView()
+  }, [words])
+
   const getUsernameFromServer = async (
     id: number,
     save: boolean = false,
@@ -201,9 +256,67 @@ export default function GameRoom({
     }
   }
 
+  const scrollToCSS = (
+    css: string,
+    callback?: (el: Element) => void,
+    pre: boolean = false,
+  ) => {
+    const el = wordlistRef.current?.querySelector(css)
+    if (pre) if (el) callback?.(el)
+    el?.scrollIntoView()
+    if (!pre) if (el) callback?.(el)
+  }
+
+  const scrollDown = () => scrollToCSS(`.word:last-child`)
+
+  const badWord = async (callback: () => void) => {
+    await fetchFromServer(`/game/${roomid}/wrong`, {
+      method: "post",
+      credentials: "include",
+    })
+    callback()
+  }
+
   const sendWord = async (word: string) => {
     if (word) {
-      if (playPattern.exec(word)) {
+      word = word.toLocaleLowerCase()
+      const lastListWord = words[words.length - 1].word
+      if (
+        words.find(
+          (w) =>
+            w.word.toLocaleLowerCase() === word.toLocaleLowerCase(),
+        )
+      ) {
+        badWord(() => {
+          scrollToCSS(`.word[data-word='${word}']`, (el) => {
+            el.classList.add("bad")
+            setTimeout(() => {
+              el.classList.remove("bad")
+              scrollDown()
+            }, 1000)
+          })
+        })
+        setText("")
+      } else if (
+        lastListWord.charAt(lastListWord.length - 1) ===
+        word.charAt(0)
+      ) {
+        badWord(() => {
+          scrollToCSS(
+            `.word:last-child > :last-child`,
+            (el) => {
+              console.log(el)
+              let tempInner = el.innerHTML
+              el.innerHTML = `<span class='badLetter'>${tempInner.substr(
+                0,
+                1,
+              )}</span>${tempInner.substr(1)}`
+              setTimeout(() => (el.innerHTML = tempInner), 1000)
+            },
+            true,
+          )
+        })
+      } else if (playPattern.exec(word)) {
         await fetchFromServer(`/game/${roomid}/send`, {
           method: "post",
           body: word,
@@ -229,15 +342,15 @@ export default function GameRoom({
   if (playerID === 0) return <>Error!</>
 
   return (
-    <>
-      <div>Joined room #{roomid}</div>
-      <div
-        style={{
-          maxHeight: "50vh",
-          overflow: "scroll",
-        }}
-      >
-        <div className='wordlist'>
+    <div className='gameroom'>
+      <div>
+        Joined room #{roomid}{" "}
+        <span className={"goBack"} onClick={() => leaveRoom()}>
+          Leave
+        </span>
+      </div>
+      <div className='gamelist'>
+        <div className='wordlist' ref={wordlistRef}>
           <div className='gamehead'>
             <div>Name</div>
             <div>Word</div>
@@ -245,6 +358,7 @@ export default function GameRoom({
           {words.map((word) => {
             return (
               <div
+                data-word={word.word}
                 className='gamehead word'
                 id={`${word.time}:${word.id}`}
                 key={`${word.time}:${word.id}`}
@@ -264,9 +378,13 @@ export default function GameRoom({
       <div className='bottomPane'>
         <div className='userlist'>
           {[...currentUsers].map((user) => {
+            const key = `${user}@${roomid}`
             return (
-              <div key={`${user}@${roomid}`}>
+              <div key={`${key}`}>
                 {playerNames.get(user) || user}
+                <span key={`${key}_pts`} className='pts'>
+                  {playerPoints.get(user) || 0}
+                </span>
               </div>
             )
           })}
@@ -278,7 +396,7 @@ export default function GameRoom({
             onKeyUp={(e) => {
               setError(null)
               if (e.key === "Enter") {
-                if (e.currentTarget.validity) {
+                if (text) {
                   if (words[words.length - 1]?.id !== playerID)
                     if (text != "") sendWord(text)
                 }
@@ -309,6 +427,6 @@ export default function GameRoom({
           })}
         </div>
       )}
-    </>
+    </div>
   )
 }

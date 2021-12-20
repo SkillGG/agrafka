@@ -1,3 +1,7 @@
+.gameroom {
+  padding: 5px;
+}
+
 .gamehead {
   display: grid;
   grid-auto-flow: column;
@@ -7,16 +11,35 @@
 .gamehead div {
   text-align: center;
   width: 100%;
-  display: inline-block;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .gamehead div:first-child {
   border-right: 1px solid black;
 }
 
+.gamelist {
+  max-height: 50vh;
+  overflow: scroll;
+}
+
+.userInput {
+  margin: 0 auto;
+  display: flex;
+  height: min-content;
+  justify-content: center;
+}
+
+.userlist {
+  border: 1px solid black;
+  display: table;
+  padding: 2px 5px;
+}
+
 .wordlist {
   border: 1px solid black;
-  width: 75%;
   margin: 0 auto;
 }
 
@@ -24,6 +47,25 @@
   border-top: 1px solid black;
 }
 
+.bottomPane {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: 1fr 3fr;
+  margin: 5px 0px;
+}
+
+.pts {
+  float: right;
+}
+
 .playerid {
+  display: flex;
+  align-items: center;
+}
+
+.bad > :last-child,
+.badLetter {
   font-weight: bolder;
+  font-size: 1.5em;
+  color: red;
 }

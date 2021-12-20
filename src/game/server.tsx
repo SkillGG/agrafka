@@ -15,3 +15,11 @@ export const fetchFromServerJSON = async (
     (r) => ({ status: r.status, response: r.json() }),
   )
 }
+
+export const checkIfPlayerExists = async (
+  name: string,
+): Promise<false | number> => {
+  let call = await fetchFromServer(`/user/name/${name}`)
+  if (call.status === 200) return parseInt(await call.response, 10)
+  return false
+}
