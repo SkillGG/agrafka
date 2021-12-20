@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from "react"
-import { fetchFromServer } from "./server"
+import { fetchFromServer, serverdomain } from "./server"
 
 type ConsoleMSG = {
   msg: string
@@ -144,7 +144,7 @@ export default function GameRoom({
 
   const listen = () => {
     const sse = new EventSource(
-      `http://localhost:3002/events/${roomid}`,
+      `${serverdomain}/events/${roomid}`,
       { withCredentials: true },
     )
     window.onpopstate = (ev) => {
@@ -298,19 +298,20 @@ export default function GameRoom({
         })
         setText("")
       } else if (
-        lastListWord.charAt(lastListWord.length - 1) ===
+        lastListWord.charAt(lastListWord.length - 1) !==
         word.charAt(0)
       ) {
+        console.log(word, lastListWord)
         badWord(() => {
           scrollToCSS(
             `.word:last-child > :last-child`,
             (el) => {
               console.log(el)
               let tempInner = el.innerHTML
-              el.innerHTML = `<span class='badLetter'>${tempInner.substr(
-                0,
+              el.innerHTML = `${tempInner.substr(0,tempInner.length-1)}<span class='badLetter'>${tempInner.substr(
+                tempInner.length-1,
                 1,
-              )}</span>${tempInner.substr(1)}`
+              )}</span>`
               setTimeout(() => (el.innerHTML = tempInner), 1000)
             },
             true,
