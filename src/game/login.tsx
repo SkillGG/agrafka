@@ -27,6 +27,7 @@ interface LoginFormElement extends HTMLFormElement {
 }
 
 import "./login.css"
+import { isCookie } from "./cookies"
 
 export default function Login({
   language,
@@ -61,7 +62,12 @@ export default function Login({
     }
   }, [logged])
 
+  const checkCookie = () => {
+    if (!isCookie("loggedas")) throw window.history.go()
+  }
+
   const logout = async () => {
+    checkCookie();
     await fetchFromServer("/logout", {
       method: "POST",
       credentials: "include",
@@ -78,6 +84,7 @@ export default function Login({
     setCreatingAccount(false)
     setFieldLabel(language.inputUsername)
     setButtonLabel(language.next)
+    setError("")
   }
 
   const handleSubmit: FormEventHandler<Element> = async (
@@ -126,16 +133,23 @@ export default function Login({
         // create account
         if (inputValue.length != 6) {
           // error "too short password"
+          setError(language.passTooShort)
           return
         }
-        let {status, response} = await fetchFromServer(`/create/${username}`, {method:"POST", body:inputValue})
-        if(status === 200){
+        let { status, response } = await fetchFromServer(
+          `/create/${username}`,
+          { method: "POST", body: inputValue },
+        )
+        if (status === 200) {
           // user created
-          let userData = {id: parseInt(await response, 10), name:username};
+          let userData = {
+            id: parseInt(await response, 10),
+            name: username,
+          }
           console.log(userData)
-          data(()=>userData)
+          setError("")
+          data(() => userData)
         }
-
       } else {
         // log into an account
         if (userID) {
@@ -155,6 +169,7 @@ export default function Login({
               window.onpopstate = () => {}
               let userData = { id: userID, name: username }
               setLoggedIn(true)
+              setError("")
               data(() => userData)
             }
           }
@@ -172,6 +187,7 @@ export default function Login({
         <form onSubmit={handleSubmit}>
           <label htmlFor='inputField'>{fieldLabel}</label>
           <br />
+          {creatingAccount && <div>{language.pinInfo}</div>}
           <input
             readOnly={true}
             onFocus={(e) => (e.target.readOnly = false)}

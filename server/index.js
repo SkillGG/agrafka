@@ -3,7 +3,6 @@ let server = fastify({
   logger: { prettyPrint: true, level: "warn" },
 })
 
-
 const Queries = require("./queries").default
 const Errors = require("./errors").default
 
@@ -15,9 +14,11 @@ const Word = require("./word").default
 const logConsole = (msg, ...opt) =>
   console.log(`\n${msg}`, ...opt, `\n\n`)
 
-const website = "localhost:3000"
+const website = "http://localhost:3000"
 // const website = "https://agrafka01.skillgg.repl.co"
 
+const cookieDomain = "localhost"
+// const cookieDomain = "skillgg.repl.co"
 
 /*const dbData = {
   host: "sql11.freemysqlhosting.net",
@@ -31,7 +32,7 @@ const dbData = {
   user: "game",
   database: "agrafka",
 }
-console.log("dbData",dbData)
+console.log("dbData", dbData)
 
 const pool = mysql.createPool(dbData)
 
@@ -98,7 +99,7 @@ server.post("/user/id/:id/login", async (req, res) => {
       if (req.body == pin) {
         res.setCookie("loggedas", `${id}`, {
           secure: true,
-          domain: "skillgg.repl.co",
+          domain: cookieDomain,
           path: "/",
           sameSite: "none",
         })
@@ -184,28 +185,44 @@ server.post("/create/:username", async (req, res) => {
 /** /game */
 
 server.post(
+  "/game/create",
+  { logLevel: "warn" },
+  async (req, res) => {
+    allowCredentials(res)
+    const userid = parseInt(req.cookies.loggedas, 10)
+    if (!userid) throw { status: 403, message: "Not logged in" }
+    const options = JSON.parse(req.body)
+    console.log(options)
+    const roomid = 99
+    return { status: 200, roomid }
+  },
+)
+
+server.post(
   "/game/:id/join",
   { logLevel: "warn" },
   async (req, res) => {
     allowCredentials(res)
-    const userid = req.cookies.loggedas
+    const userid = parseInt(req.cookies.loggedas, 10)
     const roomid = req.params.id
     const room = hub.getRoom(parseInt(roomid))
-    if (room) {
+    if (room && userid) {
       console.log(
         `User ${userid} tries to join room #${roomid}`,
         room,
       )
       room.sendEvent?.({
-        data: { type: "joined", playerid: userid, data: userid },
+        data: { type: "joined", playerid: `${userid}`, data: userid },
       })
       if (room.addPlayer(userid))
         return {
           status: 200,
           state: room.getState(),
           currplayers: [...room.players],
+          language: room.language,
+          creator: room.creator,
         }
-      else throw { status: 600, message: "Unknown error" }
+      else throw { status: 403, message: "Unknown error" }
     } else
       throw {
         status: Errors.NO_ROOM,
@@ -267,30 +284,52 @@ server.post("/game/:id/send", async (req, res) => {
   const room = hub.getRoom(roomid)
   console.log(
     `\nPlayer ${playerid} sent "${req.body}" in room #${roomid}\n`,
-  )
-  const word = new Word(playerid, req.body)
-  if (room && word.shallowCorrect()) {
-    busy = true
-    console.log("Deeply testing")
-    if (word.deepCorrect()) {
-      console.log("Deep finished!")
-      const hasWordBeenPlayed = room.checkForWord(word)
-      room.registerWord(word.playerid, word.word, word.time)
-      room.addPoints(playerid, 1)
-      room.sendEvent({
-        data: { type: "input", playerid, data: word.word },
-        time: word.time,
-      })
+    )
+    const word = new Word(playerid, req.body)
+  const removePoints = (reason) => {
+    room.addPoints(playerid, -1)
+    room.sendEvent({
+      data: {
+        type: "points",
+        playerid,
+        data: { points: -1, reason, word: word.word },
+      },
+      time: new Date().getTime(),
+    })
+  }
+  if (room) {
+    if (room.shallowCorrect(word)) {
+      busy = true
+      console.log("Deeply testing")
+      if (room.checkDictionary(word)) {
+        console.log("Deep finished!")
+        if (!room.checkForWord(word)) {
+          if (!room.shiriCheck(word)) {
+            room.registerWord(word.playerid, word.word, word.time)
+            room.addPoints(playerid, 1)
+            room.sendEvent({
+              data: { type: "input", playerid, data: word.word },
+              time: word.time,
+            })
+          } else {
+            // shiri bad
+            console.log("Word doesn't start at last letter of prev word")
+            removePoints("wrongStart")
+          }
+        } else {
+          console.log("Word already used", word)
+          removePoints("alreadyIn")
+        }
+      } else {
+        console.log("Not in dictionary #", room.language)
+        removePoints("notInDic")
+      }
     } else {
-      console.log("Not in dictionary")
-      room.addPoints(playerid, -1)
-      room.sendEvent({
-        data: { type: "points", playerid, data: -1 },
-        time: new Date().getTime(),
-      })
+      console.log("Shallow check failed")
+      removePoints("notInDic")
     }
   } else {
-    // handle two requests when they were not possible!
+    // no room
   }
   busy = false
   hub.saveRoom(room.id, updateRoomSQL)
@@ -391,11 +430,9 @@ server.get("/events/:roomid", { logLevel: "warn" }, (req, res) => {
 const start = async () => {
   try {
     await server.listen(3002, "::")
-    console.log("listening", server)
   } catch (err) {
     server.log.error(err)
     process.exit(1)
   }
 }
 start()
-

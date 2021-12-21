@@ -1,6 +1,6 @@
-const wordRegex = /[a-ząćęłóśźż]+/i
+const wordRegex = [/^[a-ząćęłóśźż]+$/i, /^[a-z]+$/i]
 
-/** @type {Set<string>} */
+/** @type {Set<string>[]} */
 const WordList = require("./wordlist.js").default
 
 class Word {
@@ -21,12 +21,13 @@ class Word {
   getStatus() {
     return `${this.playerid}${this.word}${this.time};`
   }
-  shallowCorrect() {
-    return !!wordRegex.exec(this.word)
+
+  shallowCorrect(lang) {
+    return !!wordRegex[lang || 0].exec(this.word)
   }
-  deepCorrect() {
+  deepCorrect(lang) {
     if (!WordList.ready) return console.error("Not ready yet!"), false
-    return WordList.has(this.word.toLowerCase())
+    return WordList[lang || 0].has(this.word.toLowerCase())
   }
 }
 

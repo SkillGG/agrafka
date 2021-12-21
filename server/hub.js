@@ -69,10 +69,12 @@ class Hub {
         ]
         this.getRoom(e.roomid).points = new Map(parsedData[1])
         this.getRoom(e.roomid).maxPlayers = parseInt(e.maxplayers, 10)
+        this.getRoom(e.roomid).language = parseInt(e.lang || 0, 10)
+        this.getRoom(e.roomid).creator = parseInt(e.creator || 1, 10)
       })
     }
+    this.rooms.forEach((e) => e.clearBadPlayers())
   }
 }
 
 module.exports = Hub
-

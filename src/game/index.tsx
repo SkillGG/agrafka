@@ -36,8 +36,18 @@ export default function Game() {
     setLogged(data ? data.id : null)
   }
 
+  const checkCookie = () => {
+    if (!isCookie("loggedas")) {
+      setLogged(null)
+      setData(null)
+      window.history.go()
+      return false
+    }
+    return true
+  }
   const onJoin = async (fn: () => { roomid: number }) => {
     const { roomid } = fn()
+    if (!checkCookie()) return
     const { status, response } = await fetchFromServer(
       `/game/${roomid}/join`,
       {
@@ -89,6 +99,7 @@ export default function Game() {
     }
   }, [])
   const lang = getLanguage(language)
+
   return (
     <>
       <div

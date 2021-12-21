@@ -1,12 +1,17 @@
 const fs = require("fs")
-/** @type {Set<string>} */
-let wordlist;
+/** @type {Set<string>[]} */
+let wordlist = [];
 try {
-  const data = fs.readFileSync("./server/dic/EN.bak", {
+  const ENDic = fs.readFileSync("./server/dic/EN.bak", {
     encoding: "utf-8",
   })
-  wordlist = new Set(data.split("\n"))
-  wordlist.ready = false
+  wordlist.push(new Set(ENDic.split("\n")))
+  console.log("English loaded")
+  const PLDic = fs.readFileSync("./server/dic/PL.bak", {
+    encoding: "utf-8",
+  })
+  wordlist.push(new Set(PLDic.split("\n")))
+  console.log("Polish loaded")
   console.log("Ready")
   wordlist.ready = true
 } catch (e) {

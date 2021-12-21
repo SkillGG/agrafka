@@ -14,11 +14,8 @@ export default defineConfig({
     ],
     clearScreen: false,
     server: {
-        host: "0.0.0.0",
+        host: "::",
         port: 3000,
         strictPort: true,
-        hmr: {
-            port: 443,
-        },
     },
 });

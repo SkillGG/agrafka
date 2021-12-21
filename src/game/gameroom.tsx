@@ -15,10 +15,17 @@ type Word = {
 export type Room = {
   state: string
   currplayers: number[]
+  language: number
+  creator: number
 }
 
 import "./gameroom.css"
-import { Language } from "./language"
+import { getLanguage, Language } from "./language"
+import {
+  InjectableField,
+  reasonToString,
+} from "./language/definitions"
+import { isCookie } from "./cookies"
 
 const gameRegex = /[a-z]/i
 
@@ -60,6 +67,11 @@ export default function GameRoom({
   )
 
   const [error, setError] = useState<string | null>(null)
+  const [wrong, setWrong] = useState<string | JSX.Element>("")
+
+  const checkCookie = () => {
+    if (!isCookie("loggedas")) throw history.go()
+  }
 
   const addPointToPlayer = (id: number, n: number): void => {
     console.log("addpts", id, n)
@@ -74,11 +86,13 @@ export default function GameRoom({
     )
   }
 
-  const leaveRoom = () =>
+  const leaveRoom = () => (
+    checkCookie(),
     fetchFromServer(`/game/${roomid}/leave`, {
       credentials: "include",
       method: "post",
     })
+  )
 
   let oldPop: (ev: PopStateEvent) => any
 
@@ -95,10 +109,11 @@ export default function GameRoom({
 
     const curplayers = roomState?.currplayers
     curplayers?.forEach((id) => {
-      getUsernameFromServer(id, true).then(
-        (name) =>
-          name && setCurrentUsers((prev) => new Set([...prev, id])),
-      )
+      if (id)
+        getUsernameFromServer(id, true).then(
+          (name) =>
+            name && setCurrentUsers((prev) => new Set([...prev, id])),
+        )
     })
 
     const tempPoints = new Map()
@@ -143,10 +158,9 @@ export default function GameRoom({
   }, [])
 
   const listen = () => {
-    const sse = new EventSource(
-      `${serverdomain}/events/${roomid}`,
-      { withCredentials: true },
-    )
+    const sse = new EventSource(`${serverdomain}/events/${roomid}`, {
+      withCredentials: true,
+    })
     window.onpopstate = (ev) => {
       oldPop(ev)
     }
@@ -167,11 +181,25 @@ export default function GameRoom({
         const playerid = parseInt(json.data.playerid) || 0
         switch (json.data.type) {
           case "points":
-            const pts = parseInt(json.data.data, 10)
+            const pts = parseInt(json.data.data.points, 10)
+            const reason:
+              | "notInDic"
+              | "alreadyIn"
+              | "wrongStart"
+              | "wordError"
+              | undefined = json.data.data.reason
             if (playerid && pts) {
               addPointToPlayer(playerid, pts)
-              if(pts < 0 && playerid === playerID){
-                setError("Niepoprawne slowo");
+              if (pts < 0 && playerid === playerID) {
+                if (reason)
+                  setWrong(
+                    reasonToString(
+                      language.badWord[reason],
+                      language,
+                      json.data.data.word,
+                    ),
+                  )
+                setError(language.badWord.wordError)
               }
             }
             break
@@ -273,6 +301,7 @@ export default function GameRoom({
   const scrollDown = () => scrollToCSS(`.word:last-child`)
 
   const badWord = async (callback: () => void) => {
+    checkCookie()
     await fetchFromServer(`/game/${roomid}/wrong`, {
       method: "post",
       credentials: "include",
@@ -280,16 +309,24 @@ export default function GameRoom({
     callback()
   }
 
+  const lastWord = words[words.length - 1] || null
+
   const sendWord = async (word: string) => {
+    if (!isCookie("loggedas")) throw window.history.go()
+    console.log(document.cookie)
     if (word) {
       word = word.toLocaleLowerCase()
-      const lastListWord = words[words.length - 1].word
+      const lastListWord = lastWord?.word
+      const lastChar = lastListWord
+        ? lastListWord.charAt(lastListWord.length - 1)
+        : null
       if (
         words.find(
           (w) =>
             w.word.toLocaleLowerCase() === word.toLocaleLowerCase(),
         )
       ) {
+        setWrong(language.badWord.alreadyIn)
         badWord(() => {
           scrollToCSS(`.word[data-word='${word}']`, (el) => {
             el.classList.add("bad")
@@ -300,19 +337,22 @@ export default function GameRoom({
           })
         })
         setText("")
-      } else if (
-        lastListWord.charAt(lastListWord.length - 1) !==
-        word.charAt(0)
-      ) {
+      } else if (lastChar && lastChar !== word.charAt(0)) {
         console.log(word, lastListWord)
+        setWrong(
+          language.badWord.wrongStart.fill({ value: lastChar }),
+        )
         badWord(() => {
           scrollToCSS(
             `.word:last-child > :last-child`,
             (el) => {
               console.log(el)
               let tempInner = el.innerHTML
-              el.innerHTML = `${tempInner.substr(0,tempInner.length-1)}<span class='badLetter'>${tempInner.substr(
-                tempInner.length-1,
+              el.innerHTML = `${tempInner.substr(
+                0,
+                tempInner.length - 1,
+              )}<span class='badLetter'>${tempInner.substr(
+                tempInner.length - 1,
                 1,
               )}</span>`
               setTimeout(() => (el.innerHTML = tempInner), 1000)
@@ -321,6 +361,7 @@ export default function GameRoom({
           )
         })
       } else if (playPattern.exec(word)) {
+        checkCookie()
         await fetchFromServer(`/game/${roomid}/send`, {
           method: "post",
           body: word,
@@ -344,11 +385,14 @@ export default function GameRoom({
   }
 
   if (playerID === 0) return <>Error!</>
-
+  console.log(roomState)
   return (
     <div className='gameroom'>
       <div>
-        Joined room #{roomid}{" "}
+        Joined room #{roomid}
+        [{roomState
+          ? getLanguage(roomState.language+1).CODE
+          : "idk"}]{" "}<br/>
         <span className={"goBack"} onClick={() => leaveRoom()}>
           Leave
         </span>
@@ -401,7 +445,7 @@ export default function GameRoom({
               setError(null)
               if (e.key === "Enter") {
                 if (text) {
-                  if (words[words.length - 1]?.id !== playerID)
+                  if (lastWord?.id !== playerID)
                     if (text != "") sendWord(text)
                 }
               }
@@ -409,9 +453,7 @@ export default function GameRoom({
             onChange={(e) => setText(e.currentTarget.value)}
           />
           <input
-            disabled={
-              words[words.length - 1]?.id !== playerID ? false : true
-            }
+            disabled={lastWord?.id !== playerID ? false : true}
             type='button'
             value='Send'
             onClick={(ev) => {
@@ -423,7 +465,13 @@ export default function GameRoom({
           />
         </div>
       </div>
-      {error && <div className="error">{error}</div>}
+      {error && (
+        <div className='error'>
+          {wrong}
+          <br />
+          {error}
+        </div>
+      )}
       {showConsole && (
         <div id='console'>
           {consoleMessages.map((msg, i) => {

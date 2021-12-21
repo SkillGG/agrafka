@@ -1,27 +1,19 @@
 import React, { EventHandler, MouseEventHandler } from "react"
+import {
+  InjectableField,
+  UserBackXFill,
+  XFillOnClick,
+} from "./definitions"
 
 const langList: Language[] = []
 
-export const getLanguage = (lang: number) => {
-  return langList[lang % langList.length]
-}
-
-export type InjectableField<T> = {
-  raw: string
-  fill(fill: T): string
-}
-
-export type XFill<T> = {
-  xfill?(fill: T): JSX.Element
-}
-
-export type XFillOnClick<T> = InjectableField<T> &
-  XFill<T & { onClick: MouseEventHandler }>
+export const getLanguage = (lang: number) =>
+  langList[lang % langList.length]
 
 export type Language = {
   CODE: "EN" | "PL"
   next: string
-  you:string
+  you: string
   login: string
   inputUsername: string
   register: string
@@ -31,30 +23,22 @@ export type Language = {
   loggedAs: XFillOnClick<{ value: string }>
   wrongPass: string
   joinedRoom: XFillOnClick<{ value: string }>
-  // word: string
-}
+  pinInfo: JSX.Element
+  unknownReason: string
+  passTooShort: string
+  badWord: {
+    wrongStart: InjectableField<{ value: string }>
+    alreadyIn: string
+    wordError: string
+    notInDic: InjectableField<{ value: string }>
+  }
 
-const UserBackXFill = (inp: string, cls: string) => {
-  return ({
-    value,
-    onClick,
-  }: {
-    value: string
-    onClick: MouseEventHandler
-  }) => (
-    <>
-      {inp}{" "}
-      <span className={cls} onClick={onClick}>
-        {value}
-      </span>
-      :
-    </>
-  )
+  // word: string
 }
 
 const English: Language = {
   CODE: "EN",
-  you:"You",
+  you: "You",
   next: "Next",
   login: "Login",
   inputUsername: "Input Username: ",
@@ -62,6 +46,22 @@ const English: Language = {
   wrongPass: "Wrong PIN!",
   players: "Players",
   max: "Max",
+  pinInfo: <span>PIN should consist of six digits.</span>,
+  unknownReason: "For unknown reason",
+  passTooShort: "Your PIN is too short",
+  badWord: {
+    wrongStart: {
+      raw: "Word starts wrongly",
+      fill: ({ value }): string =>
+        `The word should start at ${value.toLocaleUpperCase()}`,
+    },
+    alreadyIn: "Word has been already used!",
+    wordError: "Incorrect word",
+    notInDic: {
+      raw: "Word not in dictionary!",
+      fill: ({ value }) => `Word ${value} is not in dictionary`,
+    },
+  },
 
   inputPINFor: {
     raw: "Input PIN: ",
@@ -83,13 +83,31 @@ const English: Language = {
 const Polish: Language = {
   CODE: "PL",
   next: "Dalej",
-  you:"Ty",
+  you: "Ty",
   login: "Zaloguj",
   register: "Zarejestruj",
   inputUsername: "Podaj nazwę: ",
   wrongPass: "Zły PIN!",
   players: "Graczy",
   max: "Max",
+  pinInfo: <span>PIN powinien składać się z sześciu cyfr.</span>,
+  unknownReason: "Z nieznanego powodu",
+  passTooShort: "Twój PIN jest zbyt krótki",
+  badWord: {
+    alreadyIn: "Słowo już użyte!",
+    wordError: "Niepoprawne słowo",
+    wrongStart: {
+      raw: "Słowo się źle zaczyna",
+      fill: ({ value }): string =>
+        `Słowo powinno zaczynać się na ${value
+          .charAt(0)
+          .toLocaleUpperCase()}`,
+    },
+    notInDic: {
+      raw: "Słowa nie ma w słowniku",
+      fill: ({ value }) => `Słowo ${value} nie jest w słowniku`,
+    },
+  },
 
   inputPINFor: {
     raw: "Podaj PIN: ",

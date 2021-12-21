@@ -1,10 +1,13 @@
-export const serverdomain = "https://agrafkaserver.skillgg.repl.co"
+
+export const serverdomain = "http://localhost:3002"
+// export const serverdomain = "https://agrafkaserver.skillgg.repl.co"
 
 export const fetchFromServer = async (
   path: string,
   options: RequestInit | undefined = undefined,
 ): Promise<{ status: number; response: Promise<string> }> => {
-  return await fetch(`${serverdomain}${path}`, options).then(
+  const opts:RequestInit = {...options, cache: "no-cache"};
+  return await fetch(`${serverdomain}${path}`, opts).then(
     (r) => ({ status: r.status, response: r.text() }),
   )
 }
@@ -13,7 +16,8 @@ export const fetchFromServerJSON = async (
   path: string,
   options: RequestInit | undefined = undefined,
 ): Promise<{ status: number; response: Promise<any> }> => {
-  return await fetch(`${serverdomain}${path}`, options).then(
+  const opts:RequestInit = {...options, cache: "no-cache"};
+  return await fetch(`${serverdomain}${path}`, opts).then(
     (r) => ({ status: r.status, response: r.json() }),
   )
 }

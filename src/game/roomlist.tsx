@@ -13,6 +13,7 @@ import { fetchFromServer } from "./server"
 import "./roomlist.css"
 import { Language } from "./language"
 import { ModifierSyntaxKind } from "typescript"
+import { isCookie } from "./cookies"
 
 type RoomMap = iMap<"id" | "inside" | "max", number>
 
@@ -29,7 +30,12 @@ export default function RoomList({
 
   const [timeoutInterval, setTimeoutInterval] = useState(1500)
 
+  const checkCookie = () => {
+    if (!isCookie("loggedas")) throw window.history.go()
+  }
+
   const getUserRoom = async () => {
+    checkCookie()
     const res = await fetchFromServer("/game/where", {
       credentials: "include",
       method: "post",
@@ -41,6 +47,7 @@ export default function RoomList({
   }
 
   const getRoomList = async () => {
+    checkCookie()
     setRoomList(iSet<RoomMap>())
     const int_date = new Date()
     const res = await fetchFromServer("/game/list")
@@ -98,6 +105,7 @@ export default function RoomList({
 
   return (
     <div id='roomlist'>
+      <div id='createRoom'>New Room</div>
       <table>
         <thead>
           <tr>
