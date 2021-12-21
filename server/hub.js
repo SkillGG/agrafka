@@ -75,3 +75,4 @@ class Hub {
 }
 
 module.exports = Hub
+

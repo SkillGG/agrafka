@@ -2,7 +2,7 @@ const fs = require("fs")
 /** @type {Set<string>} */
 let wordlist;
 try {
-  const data = fs.readFileSync("./server/dic/PL.bak", {
+  const data = fs.readFileSync("./server/dic/EN.bak", {
     encoding: "utf-8",
   })
   wordlist = new Set(data.split("\n"))

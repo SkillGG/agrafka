@@ -3,6 +3,7 @@ let server = fastify({
   logger: { prettyPrint: true, level: "warn" },
 })
 
+
 const Queries = require("./queries").default
 const Errors = require("./errors").default
 
@@ -14,12 +15,25 @@ const Word = require("./word").default
 const logConsole = (msg, ...opt) =>
   console.log(`\n${msg}`, ...opt, `\n\n`)
 
-const pool = mysql.createPool({
+const website = "localhost:3000"
+// const website = "https://agrafka01.skillgg.repl.co"
+
+
+/*const dbData = {
+  host: "sql11.freemysqlhosting.net",
+  password: process.env.dbpass,
+  user: "sql11460247",
+  database: "sql11460247",
+}*/
+const dbData = {
   host: "localhost",
   password: "game",
   user: "game",
   database: "agrafka",
-})
+}
+console.log("dbData",dbData)
+
+const pool = mysql.createPool(dbData)
 
 const hub = new Hub()
 hub.init(pool).then((_) => console.log(hub.getRoom(1)))
@@ -30,8 +44,6 @@ const getError = (status, msg) => {
   erro.status = status
   return erro
 }
-
-console.log(Queries)
 
 const doesPlayerExist = (id) => {}
 
@@ -51,7 +63,7 @@ server.register(require("fastify-cookie"), {
 })
 
 server.register(require("fastify-cors"), {
-  origin: "http://localhost:3000",
+  origin: website,
   optionsSuccessStatus: 200,
 })
 
@@ -86,7 +98,7 @@ server.post("/user/id/:id/login", async (req, res) => {
       if (req.body == pin) {
         res.setCookie("loggedas", `${id}`, {
           secure: true,
-          domain: "localhost",
+          domain: "skillgg.repl.co",
           path: "/",
           sameSite: "none",
         })
@@ -378,10 +390,12 @@ server.get("/events/:roomid", { logLevel: "warn" }, (req, res) => {
 
 const start = async () => {
   try {
-    await server.listen(3000)
+    await server.listen(3002, "::")
+    console.log("listening", server)
   } catch (err) {
     server.log.error(err)
     process.exit(1)
   }
 }
 start()
+
