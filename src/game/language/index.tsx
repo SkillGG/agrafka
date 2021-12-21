@@ -21,6 +21,7 @@ export type XFillOnClick<T> = InjectableField<T> &
 export type Language = {
   CODE: "EN" | "PL"
   next: string
+  you:string
   login: string
   inputUsername: string
   register: string
@@ -53,6 +54,7 @@ const UserBackXFill = (inp: string, cls: string) => {
 
 const English: Language = {
   CODE: "EN",
+  you:"You",
   next: "Next",
   login: "Login",
   inputUsername: "Input Username: ",
@@ -81,6 +83,7 @@ const English: Language = {
 const Polish: Language = {
   CODE: "PL",
   next: "Dalej",
+  you:"Ty",
   login: "Zaloguj",
   register: "Zarejestruj",
   inputUsername: "Podaj nazwę: ",

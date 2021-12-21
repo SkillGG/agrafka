@@ -170,6 +170,9 @@ export default function GameRoom({
             const pts = parseInt(json.data.data, 10)
             if (playerid && pts) {
               addPointToPlayer(playerid, pts)
+              if(pts < 0 && playerid === playerID){
+                setError("Niepoprawne slowo");
+              }
             }
             break
           case "input":
@@ -366,9 +369,9 @@ export default function GameRoom({
               >
                 <div className='playerid'>
                   {word.id === playerID
-                    ? "You"
+                    ? language.you
                     : playerNames.get(word.id) || word.id}
-                  .
+                  :
                 </div>
                 <div className='text'>{word.word}</div>
               </div>
@@ -420,7 +423,7 @@ export default function GameRoom({
           />
         </div>
       </div>
-      {error && <div>{error}</div>}
+      {error && <div className="error">{error}</div>}
       {showConsole && (
         <div id='console'>
           {consoleMessages.map((msg, i) => {

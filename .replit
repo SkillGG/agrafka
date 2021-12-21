@@ -1,2 +1,2 @@
-run="yarn dev"
+run="yarn dev --host"
 entrypoint="src/App.tsx"
