@@ -22,9 +22,11 @@ export type Language = {
   inputPINFor: XFillOnClick<{ value: string }>
   loggedAs: XFillOnClick<{ value: string }>
   wrongPass: string
-  joinedRoom: XFillOnClick<{ value: string }>
+  joinedRoom: XFillOnClick<{ value: string; lang: string }>
   pinInfo: JSX.Element
   unknownReason: string
+  name: string
+  word: string
   passTooShort: string
   badWord: {
     wrongStart: InjectableField<{ value: string }>
@@ -32,8 +34,6 @@ export type Language = {
     wordError: string
     notInDic: InjectableField<{ value: string }>
   }
-
-  // word: string
 }
 
 const English: Language = {
@@ -41,6 +41,8 @@ const English: Language = {
   you: "You",
   next: "Next",
   login: "Login",
+  name: "Name",
+  word: "Word",
   inputUsername: "Input Username: ",
   register: "Register",
   wrongPass: "Wrong PIN!",
@@ -76,7 +78,16 @@ const English: Language = {
   joinedRoom: {
     raw: "Joined room:",
     fill: ({ value }) => `Joined to room #${value}`,
-    xfill: UserBackXFill("Joined in as", "goBack"),
+    xfill: ({ value, lang, onClick }) => (
+      <div>
+        Joined room #{value}[
+        {lang}
+        ] <br />
+        <span className={"goBack"} onClick={onClick}>
+          Leave
+        </span>
+      </div>
+    ),
   },
 }
 
@@ -86,6 +97,8 @@ const Polish: Language = {
   you: "Ty",
   login: "Zaloguj",
   register: "Zarejestruj",
+  name: "Gracz",
+  word: "Słowo",
   inputUsername: "Podaj nazwę: ",
   wrongPass: "Zły PIN!",
   players: "Graczy",
@@ -122,8 +135,17 @@ const Polish: Language = {
   joinedRoom: {
     raw: "W pokoju:",
     fill: ({ value }) => `W pokoju #${value}`,
-    xfill: UserBackXFill("W pokoju", "goBack"),
-  },
+    xfill: ({ value, lang, onClick }) => (
+      <div>
+        W pokoju #{value}[
+        {lang}
+        ] <br />
+        <span className={"goBack"} onClick={onClick}>
+          Wyjdź
+        </span>
+      </div>
+    ),
+  }
 }
 
 langList.push(English)

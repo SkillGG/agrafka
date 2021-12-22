@@ -14,10 +14,6 @@ nav {
   padding: 5px;
 }
 
-.uiLang {
-  position: absolute;
-  cursor: pointer;
-  padding: 5px;
-  right: 0;
-  z-index: 10;
+nav input {
+  margin: 2px 0;
 }

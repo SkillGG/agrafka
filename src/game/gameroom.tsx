@@ -19,7 +19,8 @@ export type Room = {
   creator: number
 }
 
-import "./gameroom.css"
+import "./light/room.css"
+import "./dark/room.css"
 import { getLanguage, Language } from "./language"
 import {
   InjectableField,
@@ -36,6 +37,7 @@ export default function GameRoom({
   playerName,
   language,
   onLeave,
+  dark,
 }: {
   roomid: number
   roomState: Room | null
@@ -43,6 +45,7 @@ export default function GameRoom({
   playerName: string
   language: Language
   onLeave: () => void
+  dark: boolean
 }) {
   const [consoleMessages, setConsoleMessages] = useState<
     ConsoleMSG[]
@@ -311,6 +314,8 @@ export default function GameRoom({
 
   const lastWord = words[words.length - 1] || null
 
+  const errTimeout = 2000
+
   const sendWord = async (word: string) => {
     if (!isCookie("loggedas")) throw window.history.go()
     console.log(document.cookie)
@@ -333,7 +338,7 @@ export default function GameRoom({
             setTimeout(() => {
               el.classList.remove("bad")
               scrollDown()
-            }, 1000)
+            }, errTimeout)
           })
         })
         setText("")
@@ -355,7 +360,7 @@ export default function GameRoom({
                 tempInner.length - 1,
                 1,
               )}</span>`
-              setTimeout(() => (el.innerHTML = tempInner), 1000)
+              setTimeout(() => (el.innerHTML = tempInner), errTimeout)
             },
             true,
           )
@@ -385,23 +390,25 @@ export default function GameRoom({
   }
 
   if (playerID === 0) return <>Error!</>
-  console.log(roomState)
+
+  const darkClass = dark ? "dark" : ""
+
   return (
-    <div className='gameroom'>
-      <div>
-        Joined room #{roomid}
-        [{roomState
-          ? getLanguage(roomState.language+1).CODE
-          : "idk"}]{" "}<br/>
-        <span className={"goBack"} onClick={() => leaveRoom()}>
-          Leave
-        </span>
-      </div>
+    <div className={`gameroom ${darkClass}`}>
+      {language.joinedRoom.xfill?.({
+        value: `${roomid}`,
+        lang: language.CODE,
+        onClick: () => leaveRoom(),
+      }) ||
+        language.joinedRoom.fill({
+          value: `${roomid}`,
+          lang: language.CODE,
+        })}
       <div className='gamelist'>
         <div className='wordlist' ref={wordlistRef}>
           <div className='gamehead'>
-            <div>Name</div>
-            <div>Word</div>
+            <div>{language.name}</div>
+            <div>{language.word}</div>
           </div>
           {words.map((word) => {
             return (

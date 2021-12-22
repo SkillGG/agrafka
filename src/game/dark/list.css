@@ -1,0 +1,16 @@
+#roomlist tr.dark {
+  border: 1px solid var(--border);
+}
+#roomlist th.dark {
+  border: 1px solid var(--border);
+  background-color: var(--lighter);
+}
+#roomlist table.dark {
+  border: 1px solid var(--border);
+}
+#roomlist tr.dark:nth-child(2n) {
+  background-color: var(--lightest);
+}
+#roomlist tr.dark:hover :not(* > th) {
+  background-color: var(--light);
+}

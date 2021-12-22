@@ -17,8 +17,8 @@
 }
 
 .error {
-font-size: 1.2em;
-color:red;
+  font-size: 1.2em;
+  color: red;
 }
 
 .gamehead div:first-child {
@@ -40,7 +40,18 @@ color:red;
 .userlist {
   border: 1px solid black;
   display: table;
+}
+
+.userlist div {
   padding: 2px 5px;
+}
+
+.userlist div:nth-child(2n){
+  background-color: #eeea;
+}
+
+.userlist div:hover {
+  background-color: #ccc5;
 }
 
 .wordlist {

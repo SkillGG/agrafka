@@ -26,16 +26,19 @@ interface LoginFormElement extends HTMLFormElement {
   readonly elements: LoginFormElements
 }
 
-import "./login.css"
+import "./light/login.css"
+import "./dark/login.css"
 import { isCookie } from "./cookies"
 
 export default function Login({
   language,
   data,
   logged,
+  dark,
 }: {
   language: Language
   data: any
+  dark: boolean
   logged?: UserData
 }) {
   const [username, setUsername] = useState<string | false>(false)
@@ -47,7 +50,6 @@ export default function Login({
 
   const [error, setError] = useState("")
   const [buttonValue, setButtonLabel] = useState(language.next)
-
   const [fieldLabel, setFieldLabel] = useState<string | JSX.Element>(
     language.inputUsername,
   )
@@ -67,7 +69,7 @@ export default function Login({
   }
 
   const logout = async () => {
-    checkCookie();
+    checkCookie()
     await fetchFromServer("/logout", {
       method: "POST",
       credentials: "include",
@@ -181,8 +183,10 @@ export default function Login({
     inputRef.current?.focus()
   }
 
+  const darkClass = dark ? "dark" : ""
+
   return (
-    <nav>
+    <nav className={darkClass}>
       {(!loggedIn && (
         <form onSubmit={handleSubmit}>
           <label htmlFor='inputField'>{fieldLabel}</label>
@@ -215,7 +219,7 @@ export default function Login({
           />
         </form>
       )) || (
-        <div>
+        <div className={darkClass}>
           {language.loggedAs.xfill?.({
             value: username || "_ERR_",
             onClick: (ev) => logout(),
@@ -225,7 +229,7 @@ export default function Login({
       )}
       {error && (
         <>
-          <span className='error'>{error}</span>
+          <span className={`error ${darkClass}`}>{error}</span>
         </>
       )}
     </nav>

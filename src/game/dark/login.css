@@ -1,0 +1,18 @@
+nav.dark input  {
+    background-color: var(--bg);
+    border: 1px solid var(--border);
+    color: white;
+    border-style: inset;
+    border-radius: 2%;
+    padding: 2px;
+}
+
+nav.dark input[type="submit"]{
+    padding: 2px 6px;
+    border-radius: 10%;
+}
+
+nav.dark input[type="text"],
+nav.dark input[type="password"]{
+    background-color: var(--lighter);
+}

@@ -1,13 +1,17 @@
 import React, { SetStateAction, useState, useEffect } from "react"
 
+import { Moon, Sunny } from "react-ionicons"
+
 import RoomList from "./roomlist"
 import Login from "./login"
 
-import "./game.css"
+import "./light/index.css"
 import { fetchFromServer } from "./server"
 import GameRoom, { Room } from "./gameroom"
 import { getCookie, isCookie } from "./cookies"
 import { getLanguage } from "./language"
+
+import "./dark/index.css"
 
 export type UserData = {
   id: number
@@ -21,6 +25,8 @@ export default function Game() {
     parseInt(localStorage.getItem("lang") || "", 10) || 0
 
   const [data, setData] = useState<UserData | null>(null)
+
+  const [darkMode, setDarkMode] = useState(false)
 
   const [selectRoom, setSelect] = useState(false)
   const [joined, setJoined] = useState<number | null>(null)
@@ -76,6 +82,9 @@ export default function Game() {
 
   /** Auto login if cookie is set */
   useEffect(() => {
+    if (window.localStorage.getItem("darkmode") === "on") {
+      setDarkMode(true)
+    }
     if (isCookie("loggedas")) {
       const loggedas = getCookie(
         "loggedas",
@@ -102,25 +111,44 @@ export default function Game() {
 
   return (
     <>
-      <div
-        className='uiLang'
-        onClick={(e) => {
-          localStorage.setItem("lang", `${language + 1}`)
-          window.history.go()
-        }}
-      >
-        {lang.CODE}
+      <div className='settings'>
+        <div
+          className='uiMode'
+          onClick={(e) => {
+            setDarkMode(!darkMode)
+            darkMode
+              ? document.body.classList.remove("dark")
+              : document.body.classList.add("dark")
+          }}
+        >
+          {darkMode ? (
+            <Sunny color='white' />
+          ) : (
+            <Moon color='black' />
+          )}
+        </div>
+        <div
+          className='uiLang'
+          onClick={(e) => {
+            localStorage.setItem("lang", `${language + 1}`)
+            window.history.go()
+          }}
+        >
+          {lang.CODE}
+        </div>
       </div>
       <Login
         language={lang}
+        dark={darkMode}
         data={setUserData}
         logged={data || undefined}
       />
       {logged && selectRoom && (
-        <RoomList language={lang} onJoin={onJoin} />
+        <RoomList language={lang} onJoin={onJoin} dark={darkMode} />
       )}
       {joined && !selectRoom && data && (
         <GameRoom
+          dark={darkMode}
           language={lang}
           roomid={joined}
           playerID={logged || 0}

@@ -10,10 +10,12 @@ type RoomListElement = {
 
 import { fetchFromServer } from "./server"
 
-import "./roomlist.css"
+import "./light/list.css"
+import "./dark/list.css"
+
 import { Language } from "./language"
-import { ModifierSyntaxKind } from "typescript"
 import { isCookie } from "./cookies"
+import { Refresh } from "react-ionicons"
 
 type RoomMap = iMap<"id" | "inside" | "max", number>
 
@@ -22,9 +24,11 @@ type RoomList = null | iSet<RoomMap>
 export default function RoomList({
   onJoin,
   language,
+  dark
 }: {
   onJoin: (fn: () => { roomid: number }) => void
   language: Language
+  dark:boolean
 }) {
   const [roomList, setRoomList] = useState<RoomList>(null)
 
@@ -104,7 +108,7 @@ export default function RoomList({
   }
 
   return (
-    <div id='roomlist'>
+    <div id='roomlist' className={dark?"dark":""}>
       <div id='createRoom'>New Room</div>
       <table>
         <thead>
@@ -114,7 +118,7 @@ export default function RoomList({
               {language.players} / {language.max}
             </th>
             <th className={"refresh"} onClick={() => getRoomList()}>
-              🔄
+              <Refresh color={dark?"white":"black"} />
             </th>
           </tr>
         </thead>
