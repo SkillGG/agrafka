@@ -84,6 +84,7 @@ export default function Game() {
   useEffect(() => {
     if (window.localStorage.getItem("darkmode") === "on") {
       setDarkMode(true)
+      document.body.classList.add("dark")
     }
     if (isCookie("loggedas")) {
       const loggedas = getCookie(
@@ -115,6 +116,9 @@ export default function Game() {
         <div
           className='uiMode'
           onClick={(e) => {
+            darkMode
+              ? window.localStorage.setItem("darkmode",null)
+              : window.localStorage.setItem("darkmode", "on")
             setDarkMode(!darkMode)
             darkMode
               ? document.body.classList.remove("dark")

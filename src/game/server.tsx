@@ -1,6 +1,6 @@
 
-export const serverdomain = "http://localhost:3002"
-// export const serverdomain = "https://agrafkaserver.skillgg.repl.co"
+//export const serverdomain = "http://localhost:3002"
+export const serverdomain = "https://agrafkaserver.skillgg.repl.co"
 
 export const fetchFromServer = async (
   path: string,
