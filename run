@@ -1,4 +1,0 @@
-#!/bin/bash
-
-gnome-terminal --geometry=65x50+0+0 -- sh -c "npm run server"
-gnome-terminal --geometry=65x50+1400+0 -- sh -c "npm run dev"

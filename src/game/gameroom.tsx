@@ -30,6 +30,13 @@ import { isCookie } from "./cookies"
 
 const gameRegex = /[a-z]/i
 
+type WrongReason =
+  | "notInDic"
+  | "alreadyIn"
+  | "wrongStart"
+  | "wordError"
+  | undefined
+
 export default function GameRoom({
   roomid,
   roomState,
@@ -55,7 +62,7 @@ export default function GameRoom({
 
   const [playerPoints, setPlayerPoints] = useState<
     Map<number, number>
-  >(new Map())
+  >(new Map([[1, 0]]))
 
   const [text, setText] = useState("")
 
@@ -77,15 +84,12 @@ export default function GameRoom({
   }
 
   const addPointToPlayer = (id: number, n: number): void => {
-    console.log("addpts", id, n)
     setPlayerPoints(
-      (prev) =>
-        new Map(
-          [...prev].map(([pid, pts]) => [
-            pid,
-            pid === id ? pts + n : pts,
-          ]),
-        ),
+      new Map<number, number>(
+        [...playerPoints].map((pts) => {
+          return [pts[0], pts[0] === id ? pts[1] + n : pts[1]]
+        }),
+      ),
     )
   }
 
@@ -160,10 +164,15 @@ export default function GameRoom({
     }
   }, [])
 
-  const listen = () => {
-    const sse = new EventSource(`${serverdomain}/events/${roomid}`, {
-      withCredentials: true,
-    })
+  const [sseEvent, setSseEvent] = useState<EventSource>()
+
+  useEffect(() => {
+    const sse = 
+      sseEvent ||
+      new EventSource(`${serverdomain}/events/${roomid}`, {
+        withCredentials: true,
+      })
+    setSseEvent(sse)
     window.onpopstate = (ev) => {
       oldPop(ev)
     }
@@ -178,19 +187,17 @@ export default function GameRoom({
       sse.close()
       onLeave()
     }
-    sse.onmessage = (ev) => {
+  }, [])
+
+  if (sseEvent) {
+    sseEvent.onmessage = (ev) => {
       try {
         let json = JSON.parse(ev.data)
         const playerid = parseInt(json.data.playerid) || 0
         switch (json.data.type) {
           case "points":
-            const pts = parseInt(json.data.data.points, 10)
-            const reason:
-              | "notInDic"
-              | "alreadyIn"
-              | "wrongStart"
-              | "wordError"
-              | undefined = json.data.data.reason
+            const pts = parseInt(json.data.data.pts, 10)
+            const reason: WrongReason = json.data.data.reason
             if (playerid && pts) {
               addPointToPlayer(playerid, pts)
               if (pts < 0 && playerid === playerID) {
@@ -243,7 +250,7 @@ export default function GameRoom({
               )
             }
             if (playerid && playerID === playerid) {
-              sse.close()
+              sseEvent.close()
               onLeave()
               return
             }
@@ -259,10 +266,6 @@ export default function GameRoom({
       } catch (e) {}
     }
   }
-
-  useEffect(() => {
-    listen()
-  }, [])
 
   const wordlistRef = useRef<HTMLDivElement>(null)
 
@@ -303,11 +306,15 @@ export default function GameRoom({
 
   const scrollDown = () => scrollToCSS(`.word:last-child`)
 
-  const badWord = async (callback: () => void) => {
+  const badWord = async (
+    callback: () => void,
+    reason?: WrongReason,
+  ) => {
     checkCookie()
     await fetchFromServer(`/game/${roomid}/wrong`, {
       method: "post",
       credentials: "include",
+      body: JSON.stringify({ reason: reason || "" }),
     })
     callback()
   }
@@ -318,7 +325,6 @@ export default function GameRoom({
 
   const sendWord = async (word: string) => {
     if (!isCookie("loggedas")) throw window.history.go()
-    console.log(document.cookie)
     if (word) {
       word = word.toLocaleLowerCase()
       const lastListWord = lastWord?.word
@@ -333,17 +339,20 @@ export default function GameRoom({
       ) {
         setWrong(language.badWord.alreadyIn)
         badWord(() => {
-          scrollToCSS(`.word[data-word='${word}']`, (el) => {
-            el.classList.add("bad")
-            setTimeout(() => {
-              el.classList.remove("bad")
-              scrollDown()
-            }, errTimeout)
-          })
+          scrollToCSS(
+            `.word[data-word='${word}']`,
+            (el) => {
+              el.classList.add("bad")
+              setTimeout(() => {
+                el.classList.remove("bad")
+                scrollDown()
+              }, errTimeout)
+            },
+            true,
+          )
         })
         setText("")
       } else if (lastChar && lastChar !== word.charAt(0)) {
-        console.log(word, lastListWord)
         setWrong(
           language.badWord.wrongStart.fill({ value: lastChar }),
         )
@@ -351,14 +360,12 @@ export default function GameRoom({
           scrollToCSS(
             `.word:last-child > :last-child`,
             (el) => {
-              console.log(el)
-              let tempInner = el.innerHTML
-              el.innerHTML = `${tempInner.substr(
+              let tempInner = el.textContent || ""
+              el.innerHTML = `${tempInner.substring(
                 0,
                 tempInner.length - 1,
-              )}<span class='badLetter'>${tempInner.substr(
+              )}<span class='badLetter'>${tempInner.substring(
                 tempInner.length - 1,
-                1,
               )}</span>`
               setTimeout(() => (el.innerHTML = tempInner), errTimeout)
             },
@@ -397,7 +404,7 @@ export default function GameRoom({
     <div className={`gameroom ${darkClass}`}>
       {language.joinedRoom.xfill?.({
         value: `${roomid}`,
-        lang: language.CODE,
+        lang: getLanguage(roomState?.language || 0).CODE,
         onClick: () => leaveRoom(),
       }) ||
         language.joinedRoom.fill({

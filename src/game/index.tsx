@@ -117,7 +117,7 @@ export default function Game() {
           className='uiMode'
           onClick={(e) => {
             darkMode
-              ? window.localStorage.setItem("darkmode",null)
+              ? window.localStorage.setItem("darkmode", "")
               : window.localStorage.setItem("darkmode", "on")
             setDarkMode(!darkMode)
             darkMode
