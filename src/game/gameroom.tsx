@@ -6,18 +6,7 @@ type ConsoleMSG = {
   date: Date
 }
 
-type Word = {
-  id: number
-  time: number
-  word: string
-}
-
-export type Room = {
-  state: string
-  currplayers: number[]
-  language: number
-  creator: number
-}
+import { Room, Word, Points, SendEvent } from "./base"
 
 import "./light/room.css"
 import "./dark/room.css"
@@ -27,15 +16,17 @@ import {
   reasonToString,
 } from "./language/definitions"
 import { isCookie } from "./cookies"
+import {
+  defaultGameMode,
+  errTimeout,
+  GameMode,
+  GameRoomRefs,
+  NNGameMode,
+  PlayerPointsRef,
+} from "./gamemodes"
+import { Reason } from "./base"
 
 const gameRegex = /[a-z]/i
-
-type WrongReason =
-  | "notInDic"
-  | "alreadyIn"
-  | "wrongStart"
-  | "wordError"
-  | undefined
 
 export default function GameRoom({
   roomid,
@@ -60,9 +51,9 @@ export default function GameRoom({
 
   const [words, setWords] = useState<Word[]>([])
 
-  const [playerPoints, setPlayerPoints] = useState<
-    Map<number, number>
-  >(new Map([[1, 0]]))
+  const [playerPoints, setPlayerPoints] = useState<Points>(new Map())
+
+  const [addedPoints, setAddedPoints] = useState<Points>(new Map())
 
   const [text, setText] = useState("")
 
@@ -79,11 +70,32 @@ export default function GameRoom({
   const [error, setError] = useState<string | null>(null)
   const [wrong, setWrong] = useState<string | JSX.Element>("")
 
+  const wordlistRef = useRef<HTMLDivElement>(null)
+  const playerlistRef = useRef<HTMLDivElement>(null)
+  const userinputRef = useRef<HTMLInputElement>(null)
+  const playerlistChildRef = useRef<PlayerPointsRef>({})
+  const gameRoomRefs: GameRoomRefs = {
+    playerList: {
+      list: playerlistRef,
+      elements: playerlistChildRef,
+      addPointState: setAddedPoints,
+    },
+    textInput: userinputRef,
+    wordList: wordlistRef,
+  }
+
   const checkCookie = () => {
     if (!isCookie("loggedas")) throw history.go()
   }
 
   const addPointToPlayer = (id: number, n: number): void => {
+    if (!roomState) return
+    getGameMode(roomState).onPtsCame(
+      { pts: n, playerid: id },
+      roomState,
+      gameRoomRefs,
+    )
+    console.log("setting player points")
     setPlayerPoints(
       new Map<number, number>(
         [...playerPoints].map((pts) => {
@@ -166,8 +178,14 @@ export default function GameRoom({
 
   const [sseEvent, setSseEvent] = useState<EventSource>()
 
+  const getGameMode = (rs: Room | null): NNGameMode => {
+    if (rs && rs.gamemode)
+      return { ...defaultGameMode, ...rs.gamemode }
+    return defaultGameMode
+  }
+
   useEffect(() => {
-    const sse = 
+    const sse =
       sseEvent ||
       new EventSource(`${serverdomain}/events/${roomid}`, {
         withCredentials: true,
@@ -177,7 +195,7 @@ export default function GameRoom({
       oldPop(ev)
     }
     window.onbeforeunload = () => {
-      sse.close()
+      ;(sseEvent || sse).close()
     }
     sse.onerror = (ev) => {
       ev.preventDefault()
@@ -187,17 +205,21 @@ export default function GameRoom({
       sse.close()
       onLeave()
     }
+    return () => {
+      ;(sseEvent || sse).close()
+    }
   }, [])
 
   if (sseEvent) {
-    sseEvent.onmessage = (ev) => {
+    sseEvent.onmessage = (ev: MessageEvent<string>) => {
       try {
-        let json = JSON.parse(ev.data)
-        const playerid = parseInt(json.data.playerid) || 0
+        let json: SendEvent = JSON.parse(ev.data)
+        const playerid = json.data.playerid
+        if (!roomState) return
         switch (json.data.type) {
           case "points":
-            const pts = parseInt(json.data.data.pts, 10)
-            const reason: WrongReason = json.data.data.reason
+            const pts = json.data.points
+            const reason = json.data.reason
             if (playerid && pts) {
               addPointToPlayer(playerid, pts)
               if (pts < 0 && playerid === playerID) {
@@ -206,7 +228,7 @@ export default function GameRoom({
                     reasonToString(
                       language.badWord[reason],
                       language,
-                      json.data.data.word,
+                      json.data.word,
                     ),
                   )
                 setError(language.badWord.wordError)
@@ -221,19 +243,20 @@ export default function GameRoom({
             ) {
               getUsernameFromServer(playerid, true)
             }
+            const word: Word = {
+              id: playerid,
+              word: json.data.word,
+              time: json.time,
+            }
+            const gamemode = getGameMode(roomState)
+            gamemode.onWordCame(word, gameRoomRefs)
             setWords((prev) => {
-              return [
-                ...prev,
-                {
-                  id: json.data.playerid,
-                  word: json.data.data,
-                  time: json.time,
-                },
-              ]
+              return [...prev, word]
             })
-            addPointToPlayer(playerid, 1)
+            const wordPoints = gamemode.wordToPts(word)
+            addPointToPlayer(playerid, wordPoints)
             break
-          case "joined":
+          case "join":
             if (playerid && playerid !== playerID)
               getUsernameFromServer(playerid, true).then((name) => {
                 if (name)
@@ -242,7 +265,7 @@ export default function GameRoom({
                   )
               })
             break
-          case "left":
+          case "leave":
             if (playerid && playerid !== playerID) {
               setCurrentUsers(
                 (prev) =>
@@ -259,15 +282,13 @@ export default function GameRoom({
         setConsoleMessages((prev) => [
           ...prev,
           {
-            msg: `${json.data.type}(${json.data.data})`,
-            date: new Date(json.time || undefined),
+            msg: `${json.data.type}(${json.data.playerid})`,
+            date: json.time ? new Date(json.time) : new Date(),
           },
         ])
       } catch (e) {}
     }
   }
-
-  const wordlistRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     wordlistRef.current
@@ -306,10 +327,7 @@ export default function GameRoom({
 
   const scrollDown = () => scrollToCSS(`.word:last-child`)
 
-  const badWord = async (
-    callback: () => void,
-    reason?: WrongReason,
-  ) => {
+  const badWord = async (callback: () => void, reason?: Reason) => {
     checkCookie()
     await fetchFromServer(`/game/${roomid}/wrong`, {
       method: "post",
@@ -320,8 +338,6 @@ export default function GameRoom({
   }
 
   const lastWord = words[words.length - 1] || null
-
-  const errTimeout = 2000
 
   const sendWord = async (word: string) => {
     if (!isCookie("loggedas")) throw window.history.go()
@@ -438,14 +454,29 @@ export default function GameRoom({
         </div>
       </div>
       <div className='bottomPane'>
-        <div className='userlist'>
-          {[...currentUsers].map((user) => {
+        <div className='userlist' ref={playerlistRef}>
+          {[...currentUsers].map((user: number) => {
             const key = `${user}@${roomid}`
+            const addedPts = addedPoints.get(user) || null
             return (
               <div key={`${key}`}>
                 {playerNames.get(user) || user}
-                <span key={`${key}_pts`} className='pts'>
+                <span
+                  ref={(el) =>
+                    (playerlistChildRef.current[user] = el!)
+                  }
+                  key={`${key}_pts`}
+                  data-playerid={user}
+                  className='pts'
+                >
                   {playerPoints.get(user) || 0}
+                  {addedPts ? (
+                    <span className={addedPts < 0 ? "plus" : "minus"}>
+                      {addedPts}
+                    </span>
+                  ) : (
+                    <></>
+                  )}
                 </span>
               </div>
             )
@@ -465,6 +496,7 @@ export default function GameRoom({
               }
             }}
             onChange={(e) => setText(e.currentTarget.value)}
+            ref={userinputRef}
           />
           <input
             disabled={lastWord?.id !== playerID ? false : true}

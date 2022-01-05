@@ -11,11 +11,11 @@ import {
   fetchFromServerJSON,
 } from "./server"
 
-import ErrorCode from "../errors"
+import { ErrorCode } from "./errors"
 
-import { getLanguage, Language } from "./language"
+import { Language } from "./language"
 import { doOnBack } from "./utils"
-import { UserData } from "."
+import { UserData } from "./index"
 
 interface LoginFormElements extends HTMLFormControlsCollection {
   asGuest?: HTMLFormElement

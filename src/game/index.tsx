@@ -7,11 +7,14 @@ import Login from "./login"
 
 import "./light/index.css"
 import { fetchFromServer } from "./server"
-import GameRoom, { Room } from "./gameroom"
+import GameRoom from "./gameroom"
 import { getCookie, isCookie } from "./cookies"
 import { getLanguage } from "./language"
+import { ErrorCode } from "./errors"
 
 import "./dark/index.css"
+import { Room } from "./base"
+import { QueryError } from "mysql2"
 
 export type UserData = {
   id: number

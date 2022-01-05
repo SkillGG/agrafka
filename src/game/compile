@@ -1,0 +1,3 @@
+#!/bin/bash
+npx tsc ./gamemodes.tsx -d -m commonjs --downlevelIteration --importHelpers --target es6 --esModuleInterop --outDir ./../../../shiri_common/ --jsx react
+npx tsc ./errors.tsx -d -m commonjs --esModuleInterop --outDir ./../../../shiri_common/ --jsx react

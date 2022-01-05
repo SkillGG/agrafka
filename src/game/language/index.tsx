@@ -1,4 +1,4 @@
-import React, { EventHandler, MouseEventHandler } from "react"
+import React from "react"
 import {
   InjectableField,
   UserBackXFill,
@@ -80,8 +80,7 @@ const English: Language = {
     fill: ({ value }) => `Joined to room #${value}`,
     xfill: ({ value, lang, onClick }) => (
       <div>
-        Joined room #{value}[
-        {lang}
+        Joined room #{value}[{lang}
         ] <br />
         <span className={"goBack"} onClick={onClick}>
           Leave
@@ -137,15 +136,14 @@ const Polish: Language = {
     fill: ({ value }) => `W pokoju #${value}`,
     xfill: ({ value, lang, onClick }) => (
       <div>
-        W pokoju #{value}[
-        {lang}
+        W pokoju #{value}[{lang}
         ] <br />
         <span className={"goBack"} onClick={onClick}>
           Wyjdź
         </span>
       </div>
     ),
-  }
+  },
 }
 
 langList.push(English)
