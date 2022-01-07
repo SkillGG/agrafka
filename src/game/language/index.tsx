@@ -1,5 +1,11 @@
 import React from "react"
 import {
+  defaultGameMode,
+  GameMode,
+  GameModes,
+  NNGameMode,
+} from "../gamemodes"
+import {
   InjectableField,
   UserBackXFill,
   XFillOnClick,
@@ -22,7 +28,12 @@ export type Language = {
   inputPINFor: XFillOnClick<{ value: string }>
   loggedAs: XFillOnClick<{ value: string }>
   wrongPass: string
-  joinedRoom: XFillOnClick<{ value: string; lang: string }>
+  joinedRoom: XFillOnClick<{
+    value: string
+    lang: string
+    desc: string
+    mode: NNGameMode
+  }>
   pinInfo: JSX.Element
   unknownReason: string
   name: string
@@ -34,6 +45,9 @@ export type Language = {
     wordError: string
     notInDic: InjectableField<{ value: string }>
   }
+
+  defaultGamemodeDescription: string
+  gamemodeDescriptions: { id: string; description: string }[]
 }
 
 const English: Language = {
@@ -78,16 +92,36 @@ const English: Language = {
   joinedRoom: {
     raw: "Joined room:",
     fill: ({ value }) => `Joined to room #${value}`,
-    xfill: ({ value, lang, onClick }) => (
+    xfill: ({
+      value,
+      lang,
+      mode = defaultGameMode,
+      desc,
+      onClick,
+    }) => (
       <div>
-        Joined room #{value}[{lang}
-        ] <br />
+        Joined room #{value}[{lang}]
+        {mode && (
+          <>
+            <br />
+            <span title={desc}>Mode: {mode.id}</span>
+          </>
+        )}
+        <br />
         <span className={"goBack"} onClick={onClick}>
           Leave
         </span>
       </div>
     ),
   },
+
+  defaultGamemodeDescription: "Default Gamemode\nsss",
+  gamemodeDescriptions: [
+    {
+      id: "+1over4",
+      description: "Additional points for every letter over 4",
+    },
+  ],
 }
 
 const Polish: Language = {
@@ -134,16 +168,36 @@ const Polish: Language = {
   joinedRoom: {
     raw: "W pokoju:",
     fill: ({ value }) => `W pokoju #${value}`,
-    xfill: ({ value, lang, onClick }) => (
+    xfill: ({
+      value,
+      lang,
+      mode = defaultGameMode,
+      desc,
+      onClick,
+    }) => (
       <div>
-        W pokoju #{value}[{lang}
-        ] <br />
+        W pokoju #{value}[{lang}]
+        {mode && (
+          <>
+            <br />
+            <span title={desc}>Tryb: {mode.id}</span>
+          </>
+        )}
+        <br />
         <span className={"goBack"} onClick={onClick}>
           Wyjdź
         </span>
       </div>
     ),
   },
+
+  defaultGamemodeDescription: "Domyślny tryb\nsss",
+  gamemodeDescriptions: [
+    {
+      id: "+1over4",
+      description: "Dodatkowy punkt za każdą literę powyżej 4",
+    },
+  ],
 }
 
 langList.push(English)

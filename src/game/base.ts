@@ -42,7 +42,7 @@ export type Word = {
   /**
    * Player ID
    */
-  id: number
+  playerid: number
   /**
    * Time, the word was sent
    */
@@ -73,7 +73,11 @@ export type Room = {
   /**
    * Room's various rules
    */
-  gamemode: GameMode
+  gamemode?: GameMode
+  /**
+   * Room's gamemode id
+   */
+  modeid: number
 }
 
 /**

@@ -1,0 +1,6 @@
+.plus1over4 :nth-child(n + 5) {
+  color: green;
+}
+.plus1over4_bad {
+  color: red;
+}

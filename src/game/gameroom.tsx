@@ -10,6 +10,9 @@ import { Room, Word, Points, SendEvent } from "./base"
 
 import "./light/room.css"
 import "./dark/room.css"
+
+import "./gamemodes.css"
+
 import { getLanguage, Language } from "./language"
 import {
   InjectableField,
@@ -21,6 +24,7 @@ import {
   errTimeout,
   GameMode,
   GameRoomRefs,
+  gmToNN,
   NNGameMode,
   PlayerPointsRef,
 } from "./gamemodes"
@@ -95,7 +99,7 @@ export default function GameRoom({
       roomState,
       gameRoomRefs,
     )
-    console.log("setting player points")
+    console.log("setting player points", id, n)
     setPlayerPoints(
       new Map<number, number>(
         [...playerPoints].map((pts) => {
@@ -163,10 +167,15 @@ export default function GameRoom({
           const time = parseInt(t, 10)
           const id = parseInt(player, 10)
           idset.add(id)
+          const w: Word = { playerid: id, word, time }
           setWords((prev) => {
-            return [...prev, { id, word, time }]
+            return [...prev, w]
           })
-          tempPoints.set(id, (tempPoints.get(id) || 0) + 1)
+          tempPoints.set(
+            id,
+            (tempPoints.get(id) || 0) +
+              getGameMode(roomState).wordToPts(w),
+          )
         }
       }
       for (const id of idset) {
@@ -178,11 +187,8 @@ export default function GameRoom({
 
   const [sseEvent, setSseEvent] = useState<EventSource>()
 
-  const getGameMode = (rs: Room | null): NNGameMode => {
-    if (rs && rs.gamemode)
-      return { ...defaultGameMode, ...rs.gamemode }
-    return defaultGameMode
-  }
+  const getGameMode = (rs: Room | null): NNGameMode =>
+    gmToNN(rs?.gamemode)
 
   useEffect(() => {
     const sse =
@@ -244,7 +250,7 @@ export default function GameRoom({
               getUsernameFromServer(playerid, true)
             }
             const word: Word = {
-              id: playerid,
+              playerid,
               word: json.data.word,
               time: json.time,
             }
@@ -254,6 +260,7 @@ export default function GameRoom({
               return [...prev, word]
             })
             const wordPoints = gamemode.wordToPts(word)
+            console.log(word.word, "is worth", wordPoints)
             addPointToPlayer(playerid, wordPoints)
             break
           case "join":
@@ -315,6 +322,7 @@ export default function GameRoom({
   }
 
   const scrollToCSS = (
+    ref: React.RefObject<HTMLDivElement>,
     css: string,
     callback?: (el: Element) => void,
     pre: boolean = false,
@@ -325,7 +333,8 @@ export default function GameRoom({
     if (!pre) if (el) callback?.(el)
   }
 
-  const scrollDown = () => scrollToCSS(`.word:last-child`)
+  const scrollDown = () =>
+    scrollToCSS(wordlistRef, `.word:last-child`)
 
   const badWord = async (callback: () => void, reason?: Reason) => {
     checkCookie()
@@ -356,6 +365,7 @@ export default function GameRoom({
         setWrong(language.badWord.alreadyIn)
         badWord(() => {
           scrollToCSS(
+            wordlistRef,
             `.word[data-word='${word}']`,
             (el) => {
               el.classList.add("bad")
@@ -374,6 +384,7 @@ export default function GameRoom({
         )
         badWord(() => {
           scrollToCSS(
+            wordlistRef,
             `.word:last-child > :last-child`,
             (el) => {
               let tempInner = el.textContent || ""
@@ -412,20 +423,36 @@ export default function GameRoom({
     }
   }
 
-  if (playerID === 0) return <>Error!</>
+  if (!playerID) return <>Error!</>
 
   const darkClass = dark ? "dark" : ""
+
+  const gameMode = getGameMode(roomState)
+  const modeDescription =
+    language.gamemodeDescriptions.find(
+      (d) => d.id === getGameMode(roomState).description,
+    )?.description || language.defaultGamemodeDescription
+
+  console.log(
+    gameMode,
+    language.gamemodeDescriptions,
+    modeDescription,
+  )
 
   return (
     <div className={`gameroom ${darkClass}`}>
       {language.joinedRoom.xfill?.({
         value: `${roomid}`,
+        mode: gameMode,
+        desc: modeDescription,
         lang: getLanguage(roomState?.language || 0).CODE,
         onClick: () => leaveRoom(),
       }) ||
         language.joinedRoom.fill({
           value: `${roomid}`,
           lang: language.CODE,
+          mode: gameMode,
+          desc: modeDescription,
         })}
       <div className='gamelist'>
         <div className='wordlist' ref={wordlistRef}>
@@ -438,16 +465,20 @@ export default function GameRoom({
               <div
                 data-word={word.word}
                 className='gamehead word'
-                id={`${word.time}:${word.id}`}
-                key={`${word.time}:${word.id}`}
+                id={`${word.time}:${word.playerid}`}
+                key={`${word.time}:${word.playerid}`}
               >
                 <div className='playerid'>
-                  {word.id === playerID
+                  {word.playerid === playerID
                     ? language.you
-                    : playerNames.get(word.id) || word.id}
+                    : playerNames.get(word.playerid) || word.playerid}
                   :
                 </div>
-                <div className='text'>{word.word}</div>
+                <div className={`text ${gameMode.wordCSSClass(word)}`}>
+                  {word.word.split("").map((char) => (
+                    <span key={`${word}_${char}`}>{char}</span>
+                  ))}
+                </div>
               </div>
             )
           })}
@@ -471,7 +502,9 @@ export default function GameRoom({
                 >
                   {playerPoints.get(user) || 0}
                   {addedPts ? (
-                    <span className={addedPts < 0 ? "plus" : "minus"}>
+                    <span
+                      className={addedPts >= 0 ? "plus" : "minus"}
+                    >
                       {addedPts}
                     </span>
                   ) : (
@@ -490,7 +523,7 @@ export default function GameRoom({
               setError(null)
               if (e.key === "Enter") {
                 if (text) {
-                  if (lastWord?.id !== playerID)
+                  if (lastWord?.playerid !== playerID)
                     if (text != "") sendWord(text)
                 }
               }
@@ -499,7 +532,7 @@ export default function GameRoom({
             ref={userinputRef}
           />
           <input
-            disabled={lastWord?.id !== playerID ? false : true}
+            disabled={lastWord?.playerid !== playerID ? false : true}
             type='button'
             value='Send'
             onClick={(ev) => {

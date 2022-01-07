@@ -22,9 +22,7 @@ export const defaultGameMode: NNGameMode = {
   wordToPts: function (word: Word): number {
     return 1
   },
-  onWordCame: function (word: Word, refs?: GameRoomRefs): number {
-    return 1
-  },
+  onWordCame: function (word: Word, refs?: GameRoomRefs): void {},
   onPtsCame: (
     points: { pts: number; playerid: number },
     room: Room,
@@ -49,11 +47,19 @@ export const defaultGameMode: NNGameMode = {
   },
   id: 0,
   description: "default options",
+  wordCSSClass: () => "",
+}
+
+export const gmToNN = (gm?: GameMode) => {
+  if (gm) {
+    const mode = typeof gm === "number" ? GameModes[gm] : gm
+    return { ...defaultGameMode, ...mode }
+  } else return defaultGameMode
 }
 
 export interface NNGameMode extends GameMode {
   wordToPts(word: Word): number
-  onWordCame(word: Word, refs?: GameRoomRefs): number
+  onWordCame(word: Word, refs?: GameRoomRefs): void
   onPtsCame(
     points: {
       pts: number
@@ -63,13 +69,14 @@ export interface NNGameMode extends GameMode {
     refs?: GameRoomRefs,
   ): void
   isWin(room: Room, players: Points): false | PlayerID
+  wordCSSClass: (w: Word) => string
 }
 
 export interface GameMode {
   id: number
   description: Exclude<string, "">
   wordToPts?(word: Word): number
-  onWordCame?(word: Word, refs?: GameRoomRefs): number
+  onWordCame?(word: Word, refs?: GameRoomRefs): void
   onPtsCame?(
     points: {
       pts: number
@@ -79,6 +86,7 @@ export interface GameMode {
     refs?: GameRoomRefs,
   ): void
   isWin?(room: Room, players: Points): false | PlayerID
+  wordCSSClass?: (w: Word) => string
 }
 
 export const errTimeout = 2000
@@ -90,5 +98,7 @@ export const GameModes: GameMode[] = [
     wordToPts: (word) => {
       return word.word.length - 4
     },
+    wordCSSClass: (w) =>
+      `plus1over4 ${w.word.length < 4 ? "plus1over4_bad" : ""}`,
   },
 ]

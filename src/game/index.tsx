@@ -15,6 +15,7 @@ import { ErrorCode } from "./errors"
 import "./dark/index.css"
 import { Room } from "./base"
 import { QueryError } from "mysql2"
+import { defaultGameMode, GameModes } from "./gamemodes"
 
 export type UserData = {
   id: number
@@ -70,6 +71,11 @@ export default function Game() {
       let room: Room & { status?: number } = JSON.parse(
         await response,
       )
+      room.gamemode = {
+        ...room.gamemode,
+        ...(GameModes.find((g) => g.id === room.modeid) ||
+          defaultGameMode),
+      }
       delete room.status
       setRoomState(room)
       setSelect(false)
