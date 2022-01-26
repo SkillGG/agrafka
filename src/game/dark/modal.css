@@ -1,0 +1,9 @@
+#roomlist.dark .modalcontent {
+  border: 1px solid var(--bg);
+  background-color: var(--modaldark);
+  color: var(--border);
+}
+
+#roomlist.dark .modal #gm1_length {
+  color: var(--border);
+}

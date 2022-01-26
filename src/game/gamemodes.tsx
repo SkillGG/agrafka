@@ -1,5 +1,13 @@
 import React from "react"
-import { Word, Room, Points, PlayerID } from "./base"
+import {
+  Word,
+  Room,
+  Points,
+  PlayerID,
+  ScoreIDs,
+  WinConditionIDs,
+  WinConditionData,
+} from "./base"
 
 export interface PlayerPointsRef {
   [key: number]: HTMLSpanElement
@@ -18,16 +26,42 @@ export interface GameRoomRefs {
   }
 }
 
-export const defaultGameMode: NNGameMode = {
-  wordToPts: function (word: Word): number {
-    return 1
-  },
-  onWordCame: function (word: Word, refs?: GameRoomRefs): void {},
-  onPtsCame: (
-    points: { pts: number; playerid: number },
+export interface ModeInfo {
+  description: string
+}
+
+export interface Scoring extends ModeInfo {
+  id: ScoreIDs
+  wordToPts(word: Word, room: Room): number
+  onWordCame(word: Word, refs?: GameRoomRefs): void
+  onPtsCame(
+    points: {
+      pts: number
+      playerid: Exclude<number, 0>
+    },
     room: Room,
     refs?: GameRoomRefs,
-  ) => {
+  ): void
+  wordCSSClass: (w: Word, room: Room) => string
+  letterCSSClass: (w: Word, i: number, room: Room) => string
+}
+
+export interface WinCondition extends ModeInfo {
+  id: WinConditionIDs
+  isWin(room: Room, players: Points): false | PlayerID
+}
+
+export interface GameMode {
+  scoring: Scoring
+  wincondition: WinCondition
+}
+
+export const defaultScoring: Scoring = {
+  wordToPts() {
+    return 1
+  },
+  onWordCame() {},
+  onPtsCame(points, room, refs) {
     const { pts, playerid } = points
     console.log("onptscame:", points)
     if (pts == 0) return
@@ -42,63 +76,91 @@ export const defaultGameMode: NNGameMode = {
       }, errTimeout)
     }
   },
-  isWin: function (room: Room, players: Points): number | false {
+  letterCSSClass: () => "",
+  wordCSSClass: () => "",
+  id: 0,
+  description: "default",
+}
+
+export const defaultWinCondition: WinCondition = {
+  isWin() {
     return false
   },
   id: 0,
-  description: "default options",
-  wordCSSClass: () => "",
+  description: "default",
 }
 
-export const gmToNN = (gm?: GameMode) => {
-  if (gm) {
-    const mode = typeof gm === "number" ? GameModes[gm] : gm
-    return { ...defaultGameMode, ...mode }
-  } else return defaultGameMode
-}
-
-export interface NNGameMode extends GameMode {
-  wordToPts(word: Word): number
-  onWordCame(word: Word, refs?: GameRoomRefs): void
-  onPtsCame(
-    points: {
-      pts: number
-      playerid: Exclude<number, 0>
-    },
-    room: Room,
-    refs?: GameRoomRefs,
-  ): void
-  isWin(room: Room, players: Points): false | PlayerID
-  wordCSSClass: (w: Word) => string
-}
-
-export interface GameMode {
-  id: number
-  description: Exclude<string, "">
-  wordToPts?(word: Word): number
-  onWordCame?(word: Word, refs?: GameRoomRefs): void
-  onPtsCame?(
-    points: {
-      pts: number
-      playerid: Exclude<number, 0>
-    },
-    room: Room,
-    refs?: GameRoomRefs,
-  ): void
-  isWin?(room: Room, players: Points): false | PlayerID
-  wordCSSClass?: (w: Word) => string
+export const defaultGameMode: GameMode = {
+  scoring: defaultScoring,
+  wincondition: defaultWinCondition,
 }
 
 export const errTimeout = 2000
 
-export const GameModes: GameMode[] = [
+const GM1_DEFAULTDATA = { length: 4 }
+
+export const ScoringSystems: Scoring[] = [
+  defaultScoring,
   {
+    ...defaultScoring,
     id: 1,
-    description: "+1over4",
-    wordToPts: (word) => {
-      return word.word.length - 4
+    description: "+1overN",
+    wordToPts(word, room) {
+      const { length = GM1_DEFAULTDATA.length } =
+        room.creationdata.Score.data
+      return word.word.length - length
     },
-    wordCSSClass: (w) =>
-      `plus1over4 ${w.word.length < 4 ? "plus1over4_bad" : ""}`,
+    wordCSSClass(word, room) {
+      const { length = GM1_DEFAULTDATA.length } =
+        room.creationdata.Score.data
+      return `plus1overN ${
+        word.word.length < length ? "plus1overN_bad" : ""
+      }`
+    },
+    letterCSSClass(w, i, room) {
+      const { length = GM1_DEFAULTDATA.length } =
+        room.creationdata.Score.data
+      return (i >= length && "pointed") || ""
+    },
+  },
+  {
+    ...defaultScoring,
+    id: 2,
+    description: "length",
+    wordToPts: (word) => word.word.length,
+  },
+  {
+    ...defaultScoring,
+    id: 101,
+    description: "+1overN_safe",
+    wordToPts(word, room) {
+      const { length = GM1_DEFAULTDATA.length } =
+        room.creationdata.Score.data
+      return word.word.length > length ? word.word.length - length : 1
+    },
+    wordCSSClass: () => `plus1overN_safe`,
+    letterCSSClass(w, i, room) {
+      const { length = GM1_DEFAULTDATA.length } =
+        room.creationdata.Score.data
+      return (i >= length && "pointed") || ""
+    },
+  },
+]
+
+export const WinConditions: WinCondition[] = [
+  defaultWinCondition,
+  {
+    description: "overN",
+    id: 1,
+    isWin(room, points) {
+      const { points: maxpts } = room.creationdata.WinCondition.data
+      if (maxpts) {
+        const winner = [...points].find((pts) => {
+          return pts[1] >= maxpts
+        })
+        if (winner) return winner[0]
+      }
+      return false
+    },
   },
 ]

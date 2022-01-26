@@ -1,4 +1,5 @@
-import { GameMode } from "./gamemodes"
+import { GameMode, ScoringSystems, WinConditions } from "./gamemodes"
+import { getLangList } from "./language"
 
 export type PlayerID = Exclude<number, 0>
 
@@ -12,14 +13,21 @@ export type Reason =
 type InOutEvent = {
   data: {
     type: "leave" | "join"
-    playerid: number
+    playerid: PlayerID
+  }
+}
+
+type FinishEvent = {
+  data: {
+    type: "win"
+    playerid: PlayerID
   }
 }
 
 type PointEvent = {
   data: {
     type: "points"
-    playerid: number
+    playerid: PlayerID
     points: number
     reason?: Reason
     word?: string
@@ -29,12 +37,50 @@ type PointEvent = {
 type InputEvent = {
   data: {
     type: "input"
-    playerid: number
+    playerid: PlayerID
     word: string
   }
 }
 
-export type SendEvent = (InOutEvent | PointEvent | InputEvent) & {
+type CheckEvent = {
+  data: {
+    type: "check"
+    playerid: PlayerID
+  }
+}
+
+export type WinConditionIDs = 0 | 1
+
+export type WinConditionData = { points?: number }
+
+export type ScoreIDs = 0 | 1 | 2 | 101
+export type ScoringData = { length?: number }
+
+export type LangIDs = 0 | 1
+
+export type NewRoomData = {
+  WinCondition: { id: WinConditionIDs; data: WinConditionData }
+  Score: { id: ScoreIDs; data: ScoringData }
+  MaxPlayers: number
+  Dictionary: LangIDs
+}
+
+export const existsScore = (n: number): n is ScoreIDs =>
+  !!ScoringSystems.find((sc) => n === sc.id)
+
+export const existsWinCondition = (n: number): n is WinConditionIDs =>
+  !!WinConditions.find((sc) => n === sc.id)
+
+export const existsLanguage = (n: number): n is LangIDs =>
+  !!getLangList().find((l) => l.id === n)
+
+export type SendEvent = (
+  | CheckEvent
+  | InOutEvent
+  | PointEvent
+  | InputEvent
+  | FinishEvent
+) & {
   time: number
 }
 
@@ -42,7 +88,7 @@ export type Word = {
   /**
    * Player ID
    */
-  playerid: number
+  playerid: PlayerID
   /**
    * Time, the word was sent
    */
@@ -61,23 +107,19 @@ export type Room = {
   /**
    * Array of IDs of players currently in the room
    */
-  currplayers: number[]
-  /**
-   * Room's dictionary
-   */
-  language: number
+  players: PlayerID[]
   /**
    * ID of the player who created/is the owner of the room
    */
-  creator: number
+  creator: PlayerID
   /**
    * Room's various rules
    */
   gamemode?: GameMode
   /**
-   * Room's gamemode id
+   * Room's gamemode data
    */
-  modeid: number
+  creationdata: NewRoomData
 }
 
 /**

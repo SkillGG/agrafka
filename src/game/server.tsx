@@ -1,25 +1,27 @@
-
-export const serverdomain = "http://localhost:3002"
-//export const serverdomain = "https://shiriserver.skillgg.repl.co"
+export const serverdomain = import.meta.env.PROD
+  ? "https://shiriserver.skillgg.repl.co"
+  : "http://localhost:3002"
 
 export const fetchFromServer = async (
   path: string,
   options: RequestInit | undefined = undefined,
 ): Promise<{ status: number; response: Promise<string> }> => {
-  const opts:RequestInit = {...options, cache: "no-cache"};
-  return await fetch(`${serverdomain}${path}`, opts).then(
-    (r) => ({ status: r.status, response: r.text() }),
-  )
+  const opts: RequestInit = { ...options, cache: "no-cache" }
+  return await fetch(`${serverdomain}${path}`, opts).then((r) => ({
+    status: r.status,
+    response: r.text(),
+  }))
 }
 
 export const fetchFromServerJSON = async (
   path: string,
   options: RequestInit | undefined = undefined,
 ): Promise<{ status: number; response: Promise<any> }> => {
-  const opts:RequestInit = {...options, cache: "no-cache"};
-  return await fetch(`${serverdomain}${path}`, opts).then(
-    (r) => ({ status: r.status, response: r.json() }),
-  )
+  const opts: RequestInit = { ...options, cache: "no-cache" }
+  return await fetch(`${serverdomain}${path}`, opts).then((r) => ({
+    status: r.status,
+    response: r.json(),
+  }))
 }
 
 export const checkIfPlayerExists = async (

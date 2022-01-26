@@ -4,9 +4,6 @@
 			"path": "."
 		},
 		{
-			"path": "../shiri_common"
-		},
-		{
 			"path": "../shiri_server"
 		}
 	]

@@ -10,12 +10,15 @@ import { Room, Word, Points, SendEvent } from "./base"
 
 import "./light/room.css"
 import "./dark/room.css"
+import "./light/modal.css"
+import "./dark/modal.css"
 
 import "./gamemodes.css"
 
 import { getLanguage, Language } from "./language"
 import {
   InjectableField,
+  isXFill,
   reasonToString,
 } from "./language/definitions"
 import { isCookie } from "./cookies"
@@ -24,8 +27,6 @@ import {
   errTimeout,
   GameMode,
   GameRoomRefs,
-  gmToNN,
-  NNGameMode,
   PlayerPointsRef,
 } from "./gamemodes"
 import { Reason } from "./base"
@@ -42,7 +43,7 @@ export default function GameRoom({
   dark,
 }: {
   roomid: number
-  roomState: Room | null
+  roomState: Room
   playerID: number
   playerName: string
   language: Language
@@ -71,6 +72,8 @@ export default function GameRoom({
     new Set(),
   )
 
+  const [winner, setWinner] = useState<false | number>(false)
+
   const [error, setError] = useState<string | null>(null)
   const [wrong, setWrong] = useState<string | JSX.Element>("")
 
@@ -94,7 +97,7 @@ export default function GameRoom({
 
   const addPointToPlayer = (id: number, n: number): void => {
     if (!roomState) return
-    getGameMode(roomState).onPtsCame(
+    getGameMode(roomState).scoring.onPtsCame(
       { pts: n, playerid: id },
       roomState,
       gameRoomRefs,
@@ -130,17 +133,19 @@ export default function GameRoom({
       leaveRoom()
     }
 
-    const curplayers = roomState?.currplayers
+    const tempPoints = new Map()
+    const curplayers = roomState.players
     curplayers?.forEach((id) => {
-      if (id)
+      tempPoints.set(id, 0)
+      if (id) {
         getUsernameFromServer(id, true).then(
           (name) =>
             name && setCurrentUsers((prev) => new Set([...prev, id])),
         )
+      }
     })
 
-    const tempPoints = new Map()
-    const ptsstaterx = roomState?.state.matchAll(
+    const ptsstaterx = roomState.state.matchAll(
       /(?<player>\d+)(?<pts>\-+)/gi,
     )
     if (ptsstaterx) {
@@ -155,7 +160,7 @@ export default function GameRoom({
       }
     }
 
-    const staterx = roomState?.state.matchAll(
+    const staterx = roomState.state.matchAll(
       /(?<player>\d+?)(?<word>[a-ząćęółńśżź]+)(?<t>\d+?);/gi,
     )
     if (staterx) {
@@ -174,7 +179,7 @@ export default function GameRoom({
           tempPoints.set(
             id,
             (tempPoints.get(id) || 0) +
-              getGameMode(roomState).wordToPts(w),
+              getGameMode(roomState).scoring.wordToPts(w, roomState),
           )
         }
       }
@@ -187,8 +192,26 @@ export default function GameRoom({
 
   const [sseEvent, setSseEvent] = useState<EventSource>()
 
-  const getGameMode = (rs: Room | null): NNGameMode =>
-    gmToNN(rs?.gamemode)
+  const getGameMode = (rs: Room | null): GameMode => {
+    return rs?.gamemode || defaultGameMode
+  }
+
+  const [checkTimeout, setCheckTimeout] = useState(0)
+
+  const checkConnection = () => {
+    if (!checkTimeout)
+      setCheckTimeout(
+        setTimeout(() => {
+          fetchFromServer(`/check/${roomid}`, {
+            credentials: "include",
+            method: "post",
+          }).then(() => {
+            console.log("not connected")
+            setCheckTimeout(0)
+          })
+        }, 1000),
+      )
+  }
 
   useEffect(() => {
     const sse =
@@ -211,6 +234,7 @@ export default function GameRoom({
       sse.close()
       onLeave()
     }
+    //    checkConnection()
     return () => {
       ;(sseEvent || sse).close()
     }
@@ -241,6 +265,15 @@ export default function GameRoom({
               }
             }
             break
+          case "check":
+            console.log("got checked")
+            clearTimeout(checkTimeout)
+            setCheckTimeout(0)
+            break
+          case "win":
+            console.log("Somebody won", json.data)
+            setWinner(json.data.playerid)
+            break
           case "input":
             if (
               playerid &&
@@ -255,22 +288,29 @@ export default function GameRoom({
               time: json.time,
             }
             const gamemode = getGameMode(roomState)
-            gamemode.onWordCame(word, gameRoomRefs)
+            gamemode.scoring.onWordCame(word, gameRoomRefs)
             setWords((prev) => {
               return [...prev, word]
             })
-            const wordPoints = gamemode.wordToPts(word)
-            console.log(word.word, "is worth", wordPoints)
+            const wordPoints = gamemode.scoring.wordToPts(
+              word,
+              roomState,
+            )
             addPointToPlayer(playerid, wordPoints)
             break
           case "join":
-            if (playerid && playerid !== playerID)
+            if (playerid && playerid !== playerID) {
+              if (!playerPoints.has(playerid))
+                setPlayerPoints(
+                  (prev) => new Map([...prev, [playerid, 0]]),
+                )
               getUsernameFromServer(playerid, true).then((name) => {
                 if (name)
                   setCurrentUsers(
                     (prev) => new Set([...prev, playerid]),
                   )
               })
+            }
             break
           case "leave":
             if (playerid && playerid !== playerID) {
@@ -313,8 +353,9 @@ export default function GameRoom({
     )
     if (status === 200) {
       let res = await response
-      if (save)
+      if (save) {
         setPlayerNames((prev) => new Map([...prev, [id, res]]))
+      }
       return res
     } else {
       return null
@@ -332,9 +373,6 @@ export default function GameRoom({
     el?.scrollIntoView()
     if (!pre) if (el) callback?.(el)
   }
-
-  const scrollDown = () =>
-    scrollToCSS(wordlistRef, `.word:last-child`)
 
   const badWord = async (callback: () => void, reason?: Reason) => {
     checkCookie()
@@ -371,7 +409,7 @@ export default function GameRoom({
               el.classList.add("bad")
               setTimeout(() => {
                 el.classList.remove("bad")
-                scrollDown()
+                scrollToCSS(wordlistRef, `.word:last-child`)
               }, errTimeout)
             },
             true,
@@ -428,31 +466,69 @@ export default function GameRoom({
   const darkClass = dark ? "dark" : ""
 
   const gameMode = getGameMode(roomState)
-  const modeDescription =
-    language.gamemodeDescriptions.find(
-      (d) => d.id === getGameMode(roomState).description,
-    )?.description || language.defaultGamemodeDescription
 
-  console.log(
-    gameMode,
-    language.gamemodeDescriptions,
-    modeDescription,
-  )
+  const scoringData = roomState.creationdata.Score.data
+  let scoreDescription =
+    language.scoreDescriptions.find(
+      (d) => d.id === getGameMode(roomState).scoring.description,
+    )?.description || language.defaultScoreDescription
+
+  if (typeof scoreDescription !== "string") {
+    const { length = 4 } = roomState.creationdata.Score.data
+    scoreDescription = scoreDescription.fill({ length })
+  }
+
+  const winConditionData = roomState.creationdata.WinCondition.data
+  let winDescription =
+    language.winDescriptions.find(
+      (d) => d.id === getGameMode(roomState).wincondition.description,
+    )?.description || language.defaultWinDescription
+  if (typeof winDescription !== "string") {
+    const { points = 100 } = winConditionData
+    winDescription = winDescription.fill({ points })
+  }
 
   return (
     <div className={`gameroom ${darkClass}`}>
+      {winner && (
+        <div
+          className='modal'
+          onClick={(e) => {
+            console.log("clicked modal")
+            if (e.currentTarget.classList.contains("modal")) {
+              leaveRoom()
+            }
+          }}
+        >
+          <div
+            className='modalcontent'
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
+          >
+            <h2>Player {playerNames.get(winner)} won?</h2>
+          </div>
+        </div>
+      )}
       {language.joinedRoom.xfill?.({
         value: `${roomid}`,
         mode: gameMode,
-        desc: modeDescription,
-        lang: getLanguage(roomState?.language || 0).CODE,
+        sdesc: scoreDescription,
+        wdesc: winDescription,
+        points: winConditionData.points,
+        length: scoringData.length,
+        lang: getLanguage(roomState.creationdata.Dictionary || 0)
+          .CODE,
         onClick: () => leaveRoom(),
       }) ||
         language.joinedRoom.fill({
           value: `${roomid}`,
           lang: language.CODE,
           mode: gameMode,
-          desc: modeDescription,
+          sdesc: scoreDescription,
+          points: winConditionData.points,
+          length: scoringData.length,
+          wdesc: winDescription,
         })}
       <div className='gamelist'>
         <div className='wordlist' ref={wordlistRef}>
@@ -474,9 +550,23 @@ export default function GameRoom({
                     : playerNames.get(word.playerid) || word.playerid}
                   :
                 </div>
-                <div className={`text ${gameMode.wordCSSClass(word)}`}>
-                  {word.word.split("").map((char) => (
-                    <span key={`${word}_${char}`}>{char}</span>
+                <div
+                  className={`text ${gameMode.scoring.wordCSSClass(
+                    word,
+                    roomState,
+                  )}`}
+                >
+                  {word.word.split("").map((char, i) => (
+                    <span
+                      className={gameMode.scoring.letterCSSClass(
+                        word,
+                        i,
+                        roomState,
+                      )}
+                      key={`${word.word}_${char}_${i}`}
+                    >
+                      {char}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -506,6 +596,9 @@ export default function GameRoom({
                       className={addedPts >= 0 ? "plus" : "minus"}
                     >
                       {addedPts}
+                      {/**
+                       * Add reason
+                       */}
                     </span>
                   ) : (
                     <></>

@@ -1,4 +1,4 @@
-import React, { SetStateAction, useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 
 import { Moon, Sunny } from "react-ionicons"
 
@@ -9,13 +9,17 @@ import "./light/index.css"
 import { fetchFromServer } from "./server"
 import GameRoom from "./gameroom"
 import { getCookie, isCookie } from "./cookies"
-import { getLanguage } from "./language"
-import { ErrorCode } from "./errors"
+import { getLangList, getLanguage } from "./language"
 
 import "./dark/index.css"
-import { Room } from "./base"
-import { QueryError } from "mysql2"
-import { defaultGameMode, GameModes } from "./gamemodes"
+import { existsLanguage, Room } from "./base"
+import {
+  defaultGameMode,
+  defaultScoring,
+  defaultWinCondition,
+  ScoringSystems,
+  WinConditions,
+} from "./gamemodes"
 
 export type UserData = {
   id: number
@@ -71,10 +75,17 @@ export default function Game() {
       let room: Room & { status?: number } = JSON.parse(
         await response,
       )
+      console.log("joined room", room)
       room.gamemode = {
-        ...room.gamemode,
-        ...(GameModes.find((g) => g.id === room.modeid) ||
-          defaultGameMode),
+        ...defaultGameMode,
+        scoring:
+          ScoringSystems.find(
+            (g) => g.id === room.creationdata.Score.id,
+          ) || defaultScoring,
+        wincondition:
+          WinConditions.find(
+            (g) => g.id === room.creationdata.WinCondition.id,
+          ) || defaultWinCondition,
       }
       delete room.status
       setRoomState(room)
@@ -143,7 +154,16 @@ export default function Game() {
         <div
           className='uiLang'
           onClick={(e) => {
-            localStorage.setItem("lang", `${language + 1}`)
+            const langlist = getLangList()
+            const listindex = langlist.findIndex(
+              (x) => x.id === lang.id,
+            )
+            if (langlist.length - 1 > listindex)
+              localStorage.setItem(
+                "lang",
+                `${langlist[listindex + 1].id}`,
+              )
+            else localStorage.setItem("lang", `${langlist[0].id}`)
             window.history.go()
           }}
         >
@@ -159,7 +179,7 @@ export default function Game() {
       {logged && selectRoom && (
         <RoomList language={lang} onJoin={onJoin} dark={darkMode} />
       )}
-      {joined && !selectRoom && data && (
+      {joined && !selectRoom && data && roomState && (
         <GameRoom
           dark={darkMode}
           language={lang}

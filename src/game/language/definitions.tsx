@@ -7,6 +7,13 @@ export type InjectableField<T> = {
   fill(fill: T): string
 }
 
+export const isInjectable = (n: any): n is InjectableField<any> =>
+  n.fill && typeof n.fill === "function" && n.raw
+
+export const isXFill: (n: any) => boolean = (
+  n: any,
+): n is XFill<any> => n.xfill && typeof n.xfill === "function"
+
 export type XFill<T> = {
   xfill?(fill: T): JSX.Element
 }

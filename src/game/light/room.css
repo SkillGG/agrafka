@@ -46,7 +46,7 @@
   padding: 2px 5px;
 }
 
-.userlist div:nth-child(2n){
+.userlist div:nth-child(2n) {
   background-color: #eeea;
 }
 

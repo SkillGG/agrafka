@@ -31,3 +31,38 @@
 #roomlist .roomcapacity {
   text-align: center;
 }
+
+/* modal */
+#roomlist .modal .modalcontent select#dic,
+#roomlist .modal #nr_max,
+#roomlist .modal #unless_pts {
+  background-color: white;
+  border: 1px solid darkgray;
+  margin: 0 10px;
+  width: 5em;
+  border-radius: 5%;
+}
+
+#roomlist .modal #unless_pts {
+  margin: 0;
+}
+
+#roomlist .modal #nr_score1_safe,
+#roomlist .modal #unless_pts,
+#roomlist .modal #nr_score1_safe + label {
+  float: right;
+}
+
+#roomlist .modal .modalcontent .option {
+  padding: 3px;
+}
+
+#roomlist .modal #gm1_length {
+  width: 3em;
+  margin-right: 25px;
+  border: none;
+  border-bottom: 1px dotted white;
+  background-color: transparent;
+  font-size: 0.9em;
+  text-align: center;
+}

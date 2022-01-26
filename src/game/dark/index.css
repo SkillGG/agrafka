@@ -4,6 +4,7 @@
     --border: lightgray;
     --lightest: #ccc1;
     --light: #eee2;
+    --modaldark: #191919;
 }
 
 body.dark {

@@ -41,3 +41,9 @@
 .gameroom.dark input[type="password"] {
   background-color: var(--lighter);
 }
+
+.gameroom.dark .modalcontent {
+  border: 1px solid var(--bg);
+  background-color: var(--modaldark);
+  color: var(--border);
+}

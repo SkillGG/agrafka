@@ -1,25 +1,36 @@
-import React from "react"
-import {
-  defaultGameMode,
-  GameMode,
-  GameModes,
-  NNGameMode,
-} from "../gamemodes"
-import {
-  InjectableField,
-  UserBackXFill,
-  XFillOnClick,
-} from "./definitions"
+import { GameMode } from "../gamemodes"
+import { InjectableField, XFill, XFillOnClick } from "./definitions"
+import { English } from "./english"
+import { Polish } from "./polish"
 
 const langList: Language[] = []
 
+export const getLangList: () => Readonly<Language[]> = () => {
+  return langList
+}
+
 export const getLanguage = (lang: number) =>
-  langList[lang % langList.length]
+  langList.find((l) => l.id === lang) || langList[0]
+
+export type ModeDescription<T extends string> = {
+  description: string
+  id: T
+}
+
+export type XModeDescription<T extends string, X> = Pick<
+  ModeDescription<T>,
+  "id"
+> & {
+  description: InjectableField<X>
+}
 
 export type Language = {
   CODE: "EN" | "PL"
+  id: number
+  notyetimplemented: string
   next: string
   you: string
+  newRoom: string
   login: string
   inputUsername: string
   register: string
@@ -31,9 +42,31 @@ export type Language = {
   joinedRoom: XFillOnClick<{
     value: string
     lang: string
-    desc: string
-    mode: NNGameMode
+    sdesc: string
+    wdesc: string
+    mode: GameMode
+    length?: number
+    points?: number
   }>
+  createRoom: {
+    maxplayers: string
+    dictionary: string
+    scoring: {
+      fieldsetlegend: string
+      id0: string
+      id1: string
+      id2: string
+      id101: string
+      id101_title: string
+    }
+    wincond: {
+      timed: string
+      endless: string
+      id1: string
+      fieldsetlegend: string
+    }
+    createBtn: string
+  }
   pinInfo: JSX.Element
   unknownReason: string
   name: string
@@ -46,158 +79,14 @@ export type Language = {
     notInDic: InjectableField<{ value: string }>
   }
 
-  defaultGamemodeDescription: string
-  gamemodeDescriptions: { id: string; description: string }[]
-}
-
-const English: Language = {
-  CODE: "EN",
-  you: "You",
-  next: "Next",
-  login: "Login",
-  name: "Name",
-  word: "Word",
-  inputUsername: "Input Username: ",
-  register: "Register",
-  wrongPass: "Wrong PIN!",
-  players: "Players",
-  max: "Max",
-  pinInfo: <span>PIN should consist of six digits.</span>,
-  unknownReason: "For unknown reason",
-  passTooShort: "Your PIN is too short",
-  badWord: {
-    wrongStart: {
-      raw: "Word starts wrongly",
-      fill: ({ value }): string =>
-        `The word should start at ${value.toLocaleUpperCase()}`,
-    },
-    alreadyIn: "Word has been already used!",
-    wordError: "Incorrect word",
-    notInDic: {
-      raw: "Word not in dictionary!",
-      fill: ({ value }) => `Word ${value} is not in dictionary`,
-    },
-  },
-
-  inputPINFor: {
-    raw: "Input PIN: ",
-    fill: ({ value }): string => `Input PIN for ${value}: `,
-    xfill: UserBackXFill("Insert PIN for", "goBack"),
-  },
-  loggedAs: {
-    raw: "Logged in",
-    fill: ({ value }) => `Logged in as ${value}:`,
-    xfill: UserBackXFill("Logged in as", "logout"),
-  },
-  joinedRoom: {
-    raw: "Joined room:",
-    fill: ({ value }) => `Joined to room #${value}`,
-    xfill: ({
-      value,
-      lang,
-      mode = defaultGameMode,
-      desc,
-      onClick,
-    }) => (
-      <div>
-        Joined room #{value}[{lang}]
-        {mode && (
-          <>
-            <br />
-            <span title={desc}>Mode: {mode.id}</span>
-          </>
-        )}
-        <br />
-        <span className={"goBack"} onClick={onClick}>
-          Leave
-        </span>
-      </div>
-    ),
-  },
-
-  defaultGamemodeDescription: "Default Gamemode\nsss",
-  gamemodeDescriptions: [
-    {
-      id: "+1over4",
-      description: "Additional points for every letter over 4",
-    },
-  ],
-}
-
-const Polish: Language = {
-  CODE: "PL",
-  next: "Dalej",
-  you: "Ty",
-  login: "Zaloguj",
-  register: "Zarejestruj",
-  name: "Gracz",
-  word: "Słowo",
-  inputUsername: "Podaj nazwę: ",
-  wrongPass: "Zły PIN!",
-  players: "Graczy",
-  max: "Max",
-  pinInfo: <span>PIN powinien składać się z sześciu cyfr.</span>,
-  unknownReason: "Z nieznanego powodu",
-  passTooShort: "Twój PIN jest zbyt krótki",
-  badWord: {
-    alreadyIn: "Słowo już użyte!",
-    wordError: "Niepoprawne słowo",
-    wrongStart: {
-      raw: "Słowo się źle zaczyna",
-      fill: ({ value }): string =>
-        `Słowo powinno zaczynać się na ${value
-          .charAt(0)
-          .toLocaleUpperCase()}`,
-    },
-    notInDic: {
-      raw: "Słowa nie ma w słowniku",
-      fill: ({ value }) => `Słowo ${value} nie jest w słowniku`,
-    },
-  },
-
-  inputPINFor: {
-    raw: "Podaj PIN: ",
-    fill: ({ value }) => `Podaj PIN dla ${value}: `,
-    xfill: UserBackXFill("Podaj PIN dla", "goBack"),
-  },
-  loggedAs: {
-    raw: "Zalogowano",
-    fill: ({ value }) => `Zalogowano jako ${value}:`,
-    xfill: UserBackXFill("Zalogowano jako", "logout"),
-  },
-  joinedRoom: {
-    raw: "W pokoju:",
-    fill: ({ value }) => `W pokoju #${value}`,
-    xfill: ({
-      value,
-      lang,
-      mode = defaultGameMode,
-      desc,
-      onClick,
-    }) => (
-      <div>
-        W pokoju #{value}[{lang}]
-        {mode && (
-          <>
-            <br />
-            <span title={desc}>Tryb: {mode.id}</span>
-          </>
-        )}
-        <br />
-        <span className={"goBack"} onClick={onClick}>
-          Wyjdź
-        </span>
-      </div>
-    ),
-  },
-
-  defaultGamemodeDescription: "Domyślny tryb\nsss",
-  gamemodeDescriptions: [
-    {
-      id: "+1over4",
-      description: "Dodatkowy punkt za każdą literę powyżej 4",
-    },
-  ],
+  defaultScoreDescription: string
+  defaultWinDescription: string
+  scoreDescriptions: [
+    XModeDescription<"+1overN", { length: number }>,
+    ModeDescription<"length">,
+    XModeDescription<"+1overN_safe", { length: number }>,
+  ]
+  winDescriptions: [XModeDescription<"overN", { points: number }>]
 }
 
 langList.push(English)
